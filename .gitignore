@@ -1,0 +1,14 @@
+node_modules/
+dist/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.omp/
+.agents/
+.weaver/requests/
+.weaver/short-numbers/
+.weaver/merge/

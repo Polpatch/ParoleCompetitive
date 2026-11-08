@@ -1,0 +1,26 @@
+:root { font-family: system-ui, sans-serif; color: #162b24; background: #f5f7f2; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { width: min(100% - 2rem, 40rem); margin: auto; padding: 1rem 0 3rem; }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+h1 { font-size: clamp(1.35rem, 5vw, 2rem); }
+button, input { font: inherit; }
+button { border: 1px solid #658377; border-radius: .4rem; background: white; color: #162b24; padding: .6rem; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #d18c00; outline-offset: 2px; }
+.board { display: grid; width: min(100%, 18.7rem); grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; margin: 1.25rem auto; }
+.tile { aspect-ratio: 1; display: grid; place-items: center; border: 2px solid #aabbb2; font-size: 1.4rem; font-weight: bold; }
+.tile.revealing { animation: flip 1s ease-in-out; }
+@keyframes flip { 50% { transform: rotateX(90deg); } }
+@media (prefers-reduced-motion: reduce) { .tile.revealing { animation: none; } }
+.green { background: #23754d; color: white; border-color: #23754d; }
+.yellow { background: #8a6500; color: white; border-color: #8a6500; }
+.gray { background: #53635b; color: white; border-color: #53635b; }
+.keyboard { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem; }
+.keyboard button { min-width: 2.4rem; }
+section, details { margin-top: 1rem; padding: 1rem; background: white; border-radius: .5rem; }
+summary { cursor: pointer; font-weight: bold; }
+fieldset { border: 0; padding: 0; margin: 1rem 0; }
+label { display: block; margin: .6rem 0; }
+.notice { min-height: 1.5em; }
+textarea { width: 100%; min-height: 12rem; }
