@@ -30,15 +30,15 @@ test('withdrawal restores earlier statistics and persists a fresh replacement', 
     }
   }, { key, saved });
   await page.goto('/ParoleCompetitive/');
-  await expect(page.getByRole('status').filter({ hasText: 'sono stati sostituiti' })).toBeVisible();
+  await expect(page.locator('.toast')).toContainText('sono stati sostituiti');
   await expect(page.locator('.tile')).toHaveCount(30);
   await expect(page.locator('.tile.green, .tile.yellow, .tile.gray')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Invio' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(page.locator('#statistics')).toContainText('Vittorie: 1');
-  await expect(page.locator('#statistics')).toContainText('Sconfitte: 0');
-  await page.getByRole('button', { name: 'Chiudi' }).click();
+  await expect(page.locator('.stat-card').filter({ hasText: 'Vittorie' }).locator('strong')).toHaveText('1');
+  await expect(page.locator('.stat-card').filter({ hasText: 'Sconfitte' }).locator('strong')).toHaveText('0');
+  await page.getByRole('dialog', { name: 'Statistiche' }).getByRole('button', { name: 'Chiudi', exact: true }).click();
   await page.locator('.board').click();
   await page.keyboard.type('audio');
   await page.keyboard.press('Enter');
@@ -67,10 +67,10 @@ test('concurrent opens serialize withdrawal and retain the replacement result', 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.keyboard.type(replacement.solution);
   await page.keyboard.press('Enter');
-  await expect(page.getByText(/Vittoria! Punteggio:/).first()).toBeVisible();
+  await expect(page.getByText(/Hai indovinato! Punteggio:/).first()).toBeVisible();
   await other.reload();
   await other.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(other.getByText(/Vittoria! Punteggio:/).first()).toBeVisible();
+  await expect(other.getByText(/Hai indovinato! Punteggio:/).first()).toBeVisible();
   const saved = await other.evaluate(({ key, date }) => JSON.parse(localStorage.getItem(key)!).games[date], { key, date: ACTIVATION_DATE });
   expect(saved.status).toBe('won');
   expect(saved.guesses).toHaveLength(1);
@@ -94,7 +94,7 @@ test('a stale public result cannot replace an open secret recap', async ({ page 
     window.dispatchEvent(new StorageEvent('storage', { key }));
   }, { key, date: ACTIVATION_DATE, old });
   await expect(dialog).toContainText('Durata:');
-  await expect(dialog).toContainText('Vittorie: 1');
+  await expect(dialog.locator('.stat-card').filter({ hasText: 'Vittorie' }).locator('strong')).toHaveText('1');
   await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toBeVisible();
   await expect.poll(() => dialog.evaluate(el => el.contains(document.activeElement))).toBe(true);
 });
@@ -126,10 +126,11 @@ test('a late clipboard failure still belongs to the retained secret result', asy
     localStorage.setItem(key, JSON.stringify(saved));
     window.dispatchEvent(new StorageEvent('storage', { key }));
   }, { key, date: ACTIVATION_DATE, old });
+  await expect.poll(() => page.evaluate(({ key, date }) => JSON.parse(localStorage.getItem(key)!).games[date]?.scheduleId, { key, date: ACTIVATION_DATE })).toBe(replacement.scheduleId);
   await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toBeVisible();
   await page.evaluate(() => (window as Window & { rejectCopy?: () => void }).rejectCopy!());
   await expect(dialog.locator('textarea')).toBeVisible();
-  await expect(dialog).toContainText('Copia automatica non riuscita');
+  await expect(dialog.getByText('Copia il testo qui sotto')).toBeVisible();
 });
 
 test('a stale public result cannot cancel a secret terminal reveal', async ({ page }) => {
@@ -169,14 +170,39 @@ test('late withdrawal discovered by an open tab reports the retired day without 
     localStorage.setItem(key, JSON.stringify(saved));
     window.dispatchEvent(new StorageEvent('storage', { key }));
   }, { key, date: ACTIVATION_DATE, old });
-  await expect(page.getByRole('status')).toContainText('sono stati sostituiti');
+  await expect(page.locator('.toast')).toContainText('sono stati sostituiti');
   const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), key);
   expect(saved.games[ACTIVATION_DATE]).toBeUndefined();
   expect(saved.games[current.date]).toEqual(current);
   await expect(page.locator('.tile.green, .tile.yellow, .tile.gray')).toHaveCount(0);
   await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(page.locator('#statistics')).toContainText('Vittorie: 0');
-  await expect(page.locator('#statistics')).toContainText('Sconfitte: 0');
+  await expect(page.locator('.stat-card').filter({ hasText: 'Vittorie' }).locator('strong')).toHaveText('0');
+  await expect(page.locator('.stat-card').filter({ hasText: 'Sconfitte' }).locator('strong')).toHaveText('0');
+});
+
+test('late withdrawal keeps open statistics usable and excludes the retired match', async ({ page }) => {
+  await page.clock.setFixedTime(now + 86400000);
+  await page.goto('/ParoleCompetitive/');
+  await expect.poll(() => page.evaluate(k => !!JSON.parse(localStorage.getItem(k) ?? '{}').games?.['2026-11-09'], key)).toBe(true);
+  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Statistiche' });
+  const old = submitGuess(createGame({ date: ACTIVATION_DATE, solution: 'AMORE', scheduleId: 'v1' }), 'AMORE', new Set(['AMORE']), now).game;
+  await page.evaluate(({ key, date, old }) => {
+    const saved = JSON.parse(localStorage.getItem(key)!);
+    saved.games[date] = old;
+    localStorage.setItem(key, JSON.stringify(saved));
+    window.dispatchEvent(new StorageEvent('storage', { key }));
+  }, { key, date: ACTIVATION_DATE, old });
+  await expect(dialog.locator('.toast')).toContainText('sono stati sostituiti');
+  await expect(dialog.locator('.stat-card').filter({ hasText: 'Vittorie' }).locator('strong')).toHaveText('0');
+  await expect(dialog).not.toContainText('Durata:');
+  await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toHaveCount(0);
+  await expect(dialog.locator('textarea')).toHaveCount(0);
+  await dialog.getByRole('tab', { name: 'Storico' }).click();
+  await expect(dialog).not.toContainText('AMORE');
+  await expect(dialog.getByRole('tab', { name: 'Storico' })).toHaveAttribute('aria-selected', 'true');
+  await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
 });
 
 test('late withdrawal preserves the current day terminal reveal', async ({ page }) => {
@@ -200,17 +226,17 @@ test('late withdrawal preserves the current day terminal reveal', async ({ page 
     localStorage.setItem(key, JSON.stringify(saved));
     window.dispatchEvent(new StorageEvent('storage', { key }));
   }, { key, date: ACTIVATION_DATE, old });
-  await expect(page.getByRole('status').first()).toContainText('sono stati sostituiti');
+  await expect(page.locator('.toast')).toContainText('sono stati sostituiti');
   expect(await page.evaluate(({ key, date }) => JSON.parse(localStorage.getItem(key)!).games[date], { key, date: ACTIVATION_DATE })).toBeUndefined();
   await expect(page.locator('.tile.revealing')).toHaveCount(5);
-  await expect(page.locator('#statistics')).toContainText('Vittorie: 0');
+  await expect(page.locator('.stat-card').filter({ hasText: 'Vittorie' }).locator('strong')).toHaveText('0');
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toHaveCount(0);
   await page.clock.runFor(2199);
   await expect(page.locator('.tile.revealing')).toHaveCount(5);
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toHaveCount(0);
   await page.clock.runFor(1);
   await expect(page.locator('.tile.revealing')).toHaveCount(0);
-  await expect(page.locator('#statistics')).toContainText('Vittorie: 1');
+  await expect(page.locator('.stat-card').filter({ hasText: 'Vittorie' }).locator('strong')).toHaveText('1');
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
 });
 
@@ -222,7 +248,7 @@ test('stale public progress cannot discard an acquired autocomplete reveal', asy
   await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
   await page.getByLabel('Autocomplete', { exact: true }).check();
   await expect.poll(() => page.evaluate(k => JSON.parse(localStorage.getItem(k)!).preferences.autocomplete, key)).toBe(true);
-  await page.getByRole('button', { name: 'Chiudi' }).click();
+  await page.getByRole('dialog', { name: 'Impostazioni' }).getByRole('button', { name: 'Chiudi', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Impostazioni' })).toHaveCount(0);
   await page.locator('.board').click();
   await page.keyboard.type('audio');

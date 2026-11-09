@@ -18,13 +18,13 @@ test('unavailable selection creates no game, explicit retry acquires once and su
     else await route.fulfill({ json: selection(date) });
   });
   await page.goto('/ParoleCompetitive/');
-  await expect(page.getByRole('status')).toContainText('non è ancora disponibile');
+  await expect(page.getByRole('status')).toContainText('non disponibile');
   expect(requests).toBe(1);
   const savedWhileUnavailable = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), key);
   expect(savedWhileUnavailable.games[date]).toBeUndefined();
   await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(page.locator('#statistics')).toContainText('Vittorie: 0 · Sconfitte: 0');
-  await page.getByRole('button', { name: 'Chiudi' }).click();
+  await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie0');
+  await page.getByRole('button', { name: 'Chiudi' }).last().click();
   await page.getByRole('button', { name: 'Riprova', exact: true }).click();
   await expect.poll(() => page.evaluate(({ key, date }) => JSON.parse(localStorage.getItem(key)!).games[date]?.solution, { key, date })).toBe(allowedWords[0]);
   expect(requests).toBe(2);
@@ -46,13 +46,13 @@ test('previous unfinished games expire while today is unavailable', async ({ pag
   await page.addInitScript(({ key, saved }) => localStorage.setItem(key, JSON.stringify(saved)), { key, saved });
   await page.route('**/daily/current.json*', route => route.abort());
   await page.goto('/ParoleCompetitive/');
-  await expect(page.getByRole('status')).toContainText('non è ancora disponibile');
+  await expect(page.getByRole('status')).toContainText('non disponibile');
   const games = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games, key);
   expect(games[date]).toBeUndefined();
   expect(games[ready.date].status).toBe('expired');
   expect(games[started.date].status).toBe('expired');
   await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(page.locator('#statistics')).toContainText('Vittorie: 0 · Sconfitte: 1');
+  await expect(page.locator('#statistics .stat-card').nth(1)).toContainText('Sconfitte1');
 });
 
 test('an incompatible vocabulary cannot start a game', async ({ page }) => {
@@ -65,7 +65,7 @@ test('an incompatible vocabulary cannot start a game', async ({ page }) => {
   const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), key);
   expect(saved.games[date]).toBeUndefined();
   await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(page.locator('#statistics')).toContainText('Vittorie: 0 · Sconfitte: 0');
+  await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie0');
 });
 
 test('the abandoned November 9 cutover does not erase the previous secret result', async ({ page }) => {
@@ -79,11 +79,11 @@ test('the abandoned November 9 cutover does not erase the previous secret result
   await expect.poll(() => page.evaluate(({ key, date }) => !!JSON.parse(localStorage.getItem(key) ?? '{}').games?.[date], { key, date })).toBe(true);
   await page.keyboard.type(allowedWords[0]);
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog', { name: 'Statistiche' })).toContainText('Vittorie: 1');
+  await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie1');
   await page.clock.setFixedTime(new Date('2026-11-09T12:00:00Z'));
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await expect.poll(() => page.evaluate(k => !!JSON.parse(localStorage.getItem(k) ?? '{}').games?.['2026-11-09'], key)).toBe(true);
-  await expect(page.getByRole('dialog', { name: 'Statistiche' })).toContainText('Vittorie: 1 · Sconfitte: 0');
+  await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie1');
   const games = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games, key);
   expect(games[date].status).toBe('won');
   expect(games['2026-11-09'].status).toBe('ready');

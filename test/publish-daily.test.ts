@@ -15,7 +15,6 @@ const directories: string[] = [];
 afterEach(async () => { vi.useRealTimers(); await Promise.all(directories.splice(0).map(path => rm(path, { recursive: true, force: true }))); });
 async function directory() { const path = await mkdtemp(join(tmpdir(), 'daily-test-')); directories.push(path); return path; }
 
-
 describe('trusted daily publisher', () => {
   it('uses the complete HMAC digest and exact date bytes, including leading-zero vectors', () => {
     // Independently checked using openssl dgst -sha256 -mac HMAC -macopt hexkey:...
@@ -104,3 +103,4 @@ describe('trusted daily publisher', () => {
     expect(romeDate(new Date('2026-10-25T22:30:00Z'))).toBe('2026-10-25');
   });
 });
+

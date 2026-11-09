@@ -146,28 +146,28 @@ export function setDraft(game: Game, draft: string): Game {
 export function submitGuess(game: Game, input: string, allowed: ReadonlySet<string>, now: number): { game: Game; error: string | null; accepted: boolean } {
   if (terminal.has(game.status)) return { game, error: null, accepted: false };
   if (typeof input !== 'string' || !/^[A-Za-z]{5}$/.test(input)) {
-    return { game, error: 'Inserisci esattamente cinque lettere dalla A alla Z.', accepted: false };
+    return { game, error: 'Servono 5 lettere dalla A alla Z', accepted: false };
   }
   const word = input.toUpperCase();
   if (game.autocomplete && fixedLetters(game).some((letter, i) => letter && word[i] !== letter)) {
-    return { game, error: 'Le lettere fisse non possono essere modificate.', accepted: false };
+    return { game, error: 'Le lettere verdi sono fisse', accepted: false };
   }
   const keys = keyboardKnowledge(game.guesses);
   if ([...word].some(letter => keys[letter] === 'gray')) {
-    return { game, error: 'La parola contiene una lettera già esclusa.', accepted: false };
+    return { game, error: 'Lettera già esclusa', accepted: false };
   }
-  if (!allowed.has(word)) return { game, error: 'La parola non è presente nel dizionario.', accepted: false };
+  if (!allowed.has(word)) return { game, error: 'Parola non ammessa', accepted: false };
   if (game.hard) {
     const { green, excluded, minimum } = hardConstraints(game.guesses);
     const counts: Record<string, number> = {};
     for (let i = 0; i < 5; i++) {
       counts[word[i]] = (counts[word[i]] || 0) + 1;
       if ((green[i] && green[i] !== word[i]) || excluded[i].has(word[i])) {
-        return { game, error: 'La parola non rispetta gli indizi della modalità difficile.', accepted: false };
+        return { game, error: 'Rispetta gli indizi della modalità difficile', accepted: false };
       }
     }
     if (Object.entries(minimum).some(([letter, count]) => (counts[letter] || 0) < count)) {
-      return { game, error: 'La parola non rispetta gli indizi della modalità difficile.', accepted: false };
+      return { game, error: 'Rispetta gli indizi della modalità difficile', accepted: false };
     }
   }
   const feedback = evaluateGuess(game.solution, word);

@@ -1,6 +1,21 @@
+import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
 const storageKey = 'parolecompetitive:session:v1';
+
+test('touch gestures remain unrestricted while selection is suppressed only on keyboard keys', async ({ page }) => {
+  await page.setContent('<main><p>Guide text</p><div class="keyboard"><button>A</button></div><textarea>Manual copy text</textarea></main>');
+  await page.addStyleTag({ path: 'src/style.css' });
+
+  for (const selector of ['html', 'body', 'main', 'p', '.keyboard', '.keyboard button', 'textarea']) {
+    await expect(page.locator(selector)).toHaveCSS('touch-action', 'auto');
+  }
+  await expect(page.locator('.keyboard button')).toHaveCSS('user-select', 'none');
+  await expect(page.locator('p')).not.toHaveCSS('user-select', 'none');
+  await expect(page.locator('textarea')).not.toHaveCSS('user-select', 'none');
+  const stylesheet = await readFile('src/style.css', 'utf8');
+  expect(stylesheet).toMatch(/\.keyboard button\s*\{[^}]*-webkit-touch-callout:\s*none/);
+});
 
 for (const width of [320, 1280]) {
   test(`window controls preserve play and focus at ${width}px`, async ({ page }) => {

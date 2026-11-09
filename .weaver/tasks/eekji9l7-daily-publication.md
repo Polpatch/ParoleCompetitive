@@ -1,5 +1,5 @@
 ---
-column: todo
+column: done
 technical: false
 refs:
 - daily-publication
@@ -10,6 +10,7 @@ refs:
 proposal: st31jv5v
 job: qw6u7wvq
 created: 2026-11-08T22:24:48.187Z
+finished: 2026-11-09T12:24:20.369Z
 ---
 # Pubblicazione giornaliera
 

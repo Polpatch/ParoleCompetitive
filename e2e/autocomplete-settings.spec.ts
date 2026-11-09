@@ -22,7 +22,7 @@ for (const appearance of ['light', 'dark'] as const) {
     await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
     await page.keyboard.type('A');
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('status')).toContainText('cinque lettere');
+    await expect(page.locator('.toast')).toContainText(/Servono 5 lettere/);
     await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Impostazioni' });
     const toggle = dialog.getByRole('checkbox', { name: 'Autocomplete' });
@@ -41,7 +41,7 @@ for (const appearance of ['light', 'dark'] as const) {
     await page.evaluate(() => (document.activeElement as HTMLElement).blur());
     await page.keyboard.type('UDIO');
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('status')).toContainText('Tentativo accettato');
+    await expect(page.locator('[aria-live="polite"].visually-hidden')).toHaveText('Tentativo inviato');
     await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
     await expect(toggle).toBeDisabled();
     await expect(toggle).toHaveAccessibleDescription(/bloccata durante la partita/i);
@@ -53,7 +53,7 @@ for (const appearance of ['light', 'dark'] as const) {
     await page.keyboard.type('MORE');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog', { name: 'Statistiche' })).toBeVisible();
-    await page.getByRole('button', { name: 'Chiudi' }).click();
+    await page.getByRole('button', { name: 'Chiudi', exact: true }).click();
     await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
     await expect(toggle).toBeEnabled();
     await expect(toggle).toHaveAccessibleDescription(/solo le partite future/i);
@@ -88,7 +88,7 @@ test('a stale tab cannot change either autocomplete choice after another tab sta
   await expect(toggle).toBeEnabled();
   await page.keyboard.type('AUDIO');
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText('Tentativo accettato');
+  await expect(page.locator('[aria-live="polite"].visually-hidden')).toHaveText('Tentativo inviato');
   await toggle.check();
   await expect(toggle).toBeDisabled();
   await expect(toggle).not.toBeChecked();

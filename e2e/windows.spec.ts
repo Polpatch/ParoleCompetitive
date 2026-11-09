@@ -35,7 +35,7 @@ test('local first-guess victory opens one recap with fixed zero duration', async
   const dialog = page.getByRole('dialog', { name: 'Statistiche' });
   await expect(dialog).toContainText('0:00');
   await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Chiudi' }).click();
+  await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Statistiche', exact: true })).toBeFocused();
   await page.reload();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -73,7 +73,7 @@ test('an open statistics dialog follows the next day without its previous result
   await expect(dialog).toContainText('Durata: 0:00');
   await page.clock.setFixedTime(new Date('2026-03-11T12:00:00Z'));
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-  await expect(dialog).toContainText('Vittorie: 1');
+  await expect(dialog.locator('.stat-card').first()).toContainText('Vittorie1');
   await expect(dialog).not.toContainText('Durata:');
   await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toHaveCount(0);
   await expect.poll(() => dialog.evaluate(el => el.contains(document.activeElement))).toBe(true);
@@ -87,14 +87,14 @@ test('recap duration is fixed at the terminal submission, including hours', asyn
   const solution = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'].solution as string, key);
   await page.keyboard.type(allowedWords.find(word => word !== solution)!);
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText('Tentativo accettato');
+  await expect(page.locator('[aria-live="polite"].visually-hidden')).toHaveText('Tentativo inviato');
   await page.clock.setFixedTime(new Date('2026-03-10T13:01:01.900Z'));
   await page.keyboard.type(solution);
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Statistiche' });
   await expect(dialog).toContainText('Durata: 1:01:01');
   await page.clock.setFixedTime(new Date('2026-03-10T14:00:00Z'));
-  await dialog.getByRole('button', { name: 'Chiudi' }).click();
+  await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
   await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
   await expect(dialog).toContainText('Durata: 1:01:01');
 });

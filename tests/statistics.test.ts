@@ -12,7 +12,7 @@ function game(status: StatisticsGame['status'], attempts: number, endedAt: numbe
 }
 
 test('empty and unstarted days do not change statistics', () => {
-  const empty = { wins: 0, losses: 0, distribution: [0, 0, 0, 0, 0, 0], latestScore: null };
+  const empty = { wins: 0, losses: 0, distribution: [0, 0, 0, 0, 0, 0], totalScore: 0 };
   assert.deepEqual(deriveStatistics({}), empty);
   assert.deepEqual(deriveStatistics({
     '2026-01-01': game('expired', 0, 100, 0, null),
@@ -21,17 +21,27 @@ test('empty and unstarted days do not change statistics', () => {
   }), empty);
 });
 
-test('wins appear in the first and sixth buckets and latest completion wins', () => {
+test('wins appear in the first and sixth buckets and scores accumulate', () => {
   const records = {
     '2026-01-01': game('won', 1, 300, 1500),
     '2026-01-02': game('won', 6, 200, 250),
   };
   assert.deepEqual(deriveStatistics(records), {
-    wins: 2, losses: 0, distribution: [1, 0, 0, 0, 0, 1], latestScore: 1500,
+    wins: 2, losses: 0, distribution: [1, 0, 0, 0, 0, 1], totalScore: 1750,
   });
 });
 
-test('losses and started expiry count, while unstarted expiry leaves latest score unchanged', () => {
+test('public and acquired challenges on the same date contribute independently', () => {
+  const records = {
+    '2026-01-01': game('won', 1, 100, 1200),
+    '2026-01-01:public': game('won', 6, 200, 250),
+  };
+  assert.deepEqual(deriveStatistics(records), {
+    wins: 2, losses: 0, distribution: [1, 0, 0, 0, 0, 1], totalScore: 1450,
+  });
+});
+
+test('losses and started expiry count without adding to the total score', () => {
   const records: Record<string, StatisticsGame> = {
     '2026-01-01': game('won', 1, 100, 1000),
     '2026-01-02': game('lost', 6, 200),
@@ -39,17 +49,17 @@ test('losses and started expiry count, while unstarted expiry leaves latest scor
     '2026-01-04': game('expired', 0, 400, 0, null),
   };
   assert.deepEqual(deriveStatistics(records), {
-    wins: 1, losses: 2, distribution: [1, 0, 0, 0, 0, 0], latestScore: 0,
+    wins: 1, losses: 2, distribution: [1, 0, 0, 0, 0, 0], totalScore: 1000,
   });
   delete records['2026-01-02'];
   delete records['2026-01-03'];
-  assert.equal(deriveStatistics(records).latestScore, 1000);
+  assert.equal(deriveStatistics(records).totalScore, 1000);
 });
 
 test('reload and repeated deliveries from competing tabs use one record per date', () => {
   const result = game('won', 6, 100, 300);
   const records = { '2026-01-01': result };
-  const expected = { wins: 1, losses: 0, distribution: [0, 0, 0, 0, 0, 1], latestScore: 300 };
+  const expected = { wins: 1, losses: 0, distribution: [0, 0, 0, 0, 0, 1], totalScore: 300 };
   assert.deepEqual(deriveStatistics(records), expected);
   const reopened = JSON.parse(JSON.stringify(records));
   reopened['2026-01-01'] = { ...result };
@@ -65,15 +75,15 @@ test('withdrawing a completed day restores statistics from the surviving outcome
   };
   delete records['2026-01-03'];
   assert.deepEqual(deriveStatistics(records), {
-    wins: 1, losses: 1, distribution: [0, 0, 0, 0, 0, 1], latestScore: 0,
+    wins: 1, losses: 1, distribution: [0, 0, 0, 0, 0, 1], totalScore: 250,
   });
   delete records['2026-01-02'];
   assert.deepEqual(deriveStatistics(records), {
-    wins: 1, losses: 0, distribution: [0, 0, 0, 0, 0, 1], latestScore: 250,
+    wins: 1, losses: 0, distribution: [0, 0, 0, 0, 0, 1], totalScore: 250,
   });
   delete records['2026-01-01'];
   assert.deepEqual(deriveStatistics(records), {
-    wins: 0, losses: 0, distribution: [0, 0, 0, 0, 0, 0], latestScore: null,
+    wins: 0, losses: 0, distribution: [0, 0, 0, 0, 0, 0], totalScore: 0,
   });
 });
 
@@ -84,7 +94,7 @@ test('replacement withdraws only the old outcome and ignores replay after a new 
   const earlier = submitGuess(createGame({ date: '2026-01-01', solution: 'AMORE', scheduleId: 'v1' }), 'AMORE', allowedGuesses, now - 2000).game;
   const session: Session = { preferences: defaultPreferences(), games: { [earlier.date]: earlier, [ACTIVATION_DATE]: oldWon } };
   assert.equal(reconcileCutover(session, now), true);
-  assert.deepEqual(deriveStatistics(session.games), { wins: 1, losses: 0, distribution: [1, 0, 0, 0, 0, 0], latestScore: earlier.score });
+  assert.deepEqual(deriveStatistics(session.games), { wins: 1, losses: 0, distribution: [1, 0, 0, 0, 0, 0], totalScore: earlier.score });
   const selection = { schema: 1 as const, date: ACTIVATION_DATE, vocabularyId, challengeId: `hmac-v1:${ACTIVATION_DATE}:${vocabularyId}`, index: allowedWords.indexOf('AMORE') };
   const fresh = reconcile(session, now, selection)!;
   assert.equal(fresh.solution, 'AMORE');
@@ -116,5 +126,5 @@ test('withdrawing an activation-day loss leaves no result when it was the only o
   const session: Session = { preferences: defaultPreferences(), games: { [ACTIVATION_DATE]: { ...started, status: 'expired', endedAt: now, score: 0 } } };
   assert.equal(deriveStatistics(session.games).losses, 1);
   reconcileCutover(session, now);
-  assert.deepEqual(deriveStatistics(session.games), { wins: 0, losses: 0, distribution: [0, 0, 0, 0, 0, 0], latestScore: null });
+  assert.deepEqual(deriveStatistics(session.games), { wins: 0, losses: 0, distribution: [0, 0, 0, 0, 0, 0], totalScore: 0 });
 });

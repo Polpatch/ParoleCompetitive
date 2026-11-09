@@ -55,7 +55,8 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await expect(page.locator('.tile').nth(6)).toHaveText('M');
     await expect(page.locator('.tile.revealing')).toHaveCount(0);
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('status')).toContainText('cinque lettere');
+    await expect(page.locator('.toast')).toBeVisible();
+    await expect(page.locator('.toast')).toContainText(/Servono 5 lettere/);
     await expect(page.locator('.tile').nth(6)).toHaveText('M');
   });
 }
@@ -124,7 +125,7 @@ test('replacement discards a partly entered old positional draft', async ({ page
     }
   }, { key, saved });
   await page.goto('/ParoleCompetitive/');
-  await expect(page.getByRole('status').filter({ hasText: 'sono stati sostituiti' })).toBeVisible();
+  await expect.poll(() => page.evaluate(({ key, date }) => !!JSON.parse(localStorage.getItem(key) ?? '{}').games?.[date]?.selection, { key, date: ACTIVATION_DATE })).toBe(true);
   await expect(page.locator('.tile.green, .tile.yellow, .tile.gray')).toHaveCount(0);
   const replacement = await page.evaluate(({ key, date }) => JSON.parse(localStorage.getItem(key)!).games[date], { key, date: ACTIVATION_DATE });
   expect(replacement.draft).toBe('');
@@ -135,5 +136,5 @@ test('replacement discards a partly entered old positional draft', async ({ page
   await page.reload();
   await expect(page.locator('.tile').first()).toHaveText('A');
   await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(page.locator('#statistics')).toContainText('Vittorie: 1');
+  await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie1');
 });

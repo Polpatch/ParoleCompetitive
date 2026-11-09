@@ -1,11 +1,14 @@
 import { defineConfig } from '@playwright/test';
 
+const port = process.env.PLAYWRIGHT_PORT ?? '4173';
+const origin = `http://127.0.0.1:${port}`;
+
 export default defineConfig({
   testDir: './e2e',
-  use: { baseURL: 'http://127.0.0.1:4173' },
+  use: { baseURL: origin },
   webServer: {
-    command: 'npm run preview -- --port 4173 --strictPort',
-    url: 'http://127.0.0.1:4173/ParoleCompetitive/',
-    reuseExistingServer: !process.env.CI,
+    command: `npm run preview -- --port ${port} --strictPort`,
+    url: `${origin}/ParoleCompetitive/`,
+    reuseExistingServer: false,
   },
 });

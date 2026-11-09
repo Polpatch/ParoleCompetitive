@@ -39,3 +39,12 @@ The player chooses to follow the device appearance, use a light appearance, or u
 
 ### SELECTION_RETRY_REQUESTED
 The player explicitly requests another acquisition of an unavailable current-day challenge.
+
+### STATISTICS_SUMMARY_SELECTED
+The player selects the statistics summary in the open statistics panel.
+
+### HISTORY_SELECTED
+The player selects the local match history in the open statistics panel.
+
+### HISTORY_MATCH_TOGGLED
+The player expands or collapses a concluded match in the local history.

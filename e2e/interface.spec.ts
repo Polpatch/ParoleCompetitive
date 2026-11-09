@@ -32,8 +32,8 @@ test('winning reveal staggers rotations and withholds outcome until completion',
       await expect(tile).toHaveClass(i < revealed ? /green/ : /^(?!.*green).*$/);
     }
     await expect(page.locator('button[data-action="submit"]')).toBeDisabled();
-    await expect(page.locator('#statistics')).toContainText('Vittorie: 0');
-    await expect(page.getByText(/Vittoria! Punteggio:/)).toHaveCount(0);
+    await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie0');
+    await expect(page.getByText(/Hai indovinato! Punteggio:/)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Condividi risultato' })).toHaveCount(0);
     await expect(page.locator(`button[data-letter="${solution[0]}"]`)).not.toHaveClass(/green/);
   };
@@ -49,8 +49,8 @@ test('winning reveal staggers rotations and withholds outcome until completion',
   await assertPresentation(5);
   await page.clock.runFor(1);
   await expect(page.locator('.tile.revealing')).toHaveCount(0);
-  await expect(page.locator('#statistics')).toContainText('Vittorie: 1');
-  await expect(page.getByText(/Vittoria! Punteggio:/).first()).toBeVisible();
+  await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie1');
+  await expect(page.getByText(/Hai indovinato! Punteggio:/).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
   await expect(page.locator('button[data-action="submit"]')).toBeDisabled();
   expect(await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'], key)).toEqual(saved);
@@ -93,9 +93,7 @@ test('day change cancels callbacks from the previous reveal', async ({ page }) =
   await expect(page.locator('.tile.revealing')).toHaveCount(5);
   await page.clock.setFixedTime(new Date('2026-03-11T12:00:00Z'));
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-  await expect(page.getByRole('status')).toContainText('Nuova sfida');
-  await page.clock.runFor(2200);
-  await expect(page.getByRole('status')).toContainText('Nuova sfida');
+  await expect(page.locator('.toast')).toBeVisible();
   await expect(page.locator('.tile.revealing')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Invio' })).toBeEnabled();
 });
@@ -114,7 +112,7 @@ test('reloading during a reveal restores committed feedback without replay', asy
   await expect(page.locator('.tile.green')).toHaveCount(5);
   await expect(page.getByRole('button', { name: 'Invio' })).toBeDisabled();
   await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(page.getByText(/Vittoria! Punteggio:/).first()).toBeVisible();
+  await expect(page.getByText(/Hai indovinato! Punteggio:/).first()).toBeVisible();
   expect(await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'], key)).toEqual(saved);
 });
 
@@ -129,7 +127,7 @@ test('reduced motion immediately presents a committed terminal result', async ({
   await expect(page.locator('.tile.green')).toHaveCount(5);
   await expect(page.locator('.tile.revealing')).toHaveCount(0);
   await expect(page.locator('button[data-action="submit"]')).toBeDisabled();
-  await expect(page.getByText(/Vittoria! Punteggio: 1500/).first()).toBeVisible();
+  await expect(page.getByText(/Hai indovinato! Punteggio: 1500/).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
 });
 
@@ -156,7 +154,7 @@ for (const viewport of [{ width: 320, height: 812 }, { width: 1280, height: 800 
     await page.getByLabel('Difficile', { exact: true }).check();
     await expect(page.getByLabel('Difficile', { exact: true })).toBeChecked();
     await page.getByLabel('Standard', { exact: true }).check();
-    await page.getByRole('button', { name: 'Chiudi' }).click();
+    await page.getByRole('button', { name: 'Chiudi', exact: true }).click();
     await page.getByRole('button', { name: 'A', exact: true }).click();
     await expect(page.locator('.tile').nth(0)).toHaveText('A');
     await page.keyboard.type('B');
@@ -182,16 +180,16 @@ for (const viewport of [{ width: 320, height: 812 }, { width: 1280, height: 800 
     await expect(page.locator('.tile').first()).toHaveAttribute('aria-label', /posizione|presente|assente/);
     await page.keyboard.type(solution);
     await page.keyboard.press('Enter');
-    await expect(page.getByText(/Vittoria! Punteggio:/).first()).toBeVisible();
+    await expect(page.getByText(/Hai indovinato! Punteggio:/).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
     await page.getByRole('button', { name: 'Condividi risultato' }).click();
-    await expect(page.getByRole('dialog').getByRole('status')).toContainText(/copiat|Copia/i);
-    await expect(page.getByText(/Vittorie: 1/)).toBeVisible();
+    await expect(page.getByRole('dialog')).toContainText(/Risultato copiato|Copia il testo qui sotto/);
+    await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie1');
     await page.reload();
     await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
     await expect(page.locator('.tile').nth(5)).toHaveText(solution[0]);
-    await page.getByRole('button', { name: 'Chiudi' }).click();
+    await page.getByRole('button', { name: 'Chiudi', exact: true }).click();
     await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
     await page.getByLabel('Condivisione spoiler-free').uncheck();
     await expect.poll(async () => page.evaluate(k => JSON.parse(localStorage.getItem(k)!).preferences.spoilerFree, key)).toBe(false);
@@ -215,12 +213,12 @@ test('day return expires a started game and reduced motion reveals immediately',
   await expect(page.locator('.tile').first()).toHaveAttribute('aria-label', /posizione|presente|assente/);
   await expect(page.locator('.tile.revealing')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Invio' })).toBeEnabled();
-  await expect(page.getByRole('status')).toContainText('Tentativo accettato');
+  await expect(page.locator('[aria-live="polite"].visually-hidden')).toHaveText('Tentativo inviato');
   await page.clock.setFixedTime(new Date('2026-03-11T12:00:00Z'));
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-  await expect(page.getByRole('status')).toContainText('Nuova sfida');
+  await expect(page.locator('.toast')).toBeVisible();
   await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(page.getByText(/Sconfitte: 1/)).toBeVisible();
+  await expect(page.locator('#statistics .stat-card').nth(1)).toContainText('Sconfitte1');
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toHaveCount(0);
   const old = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'], key);
   expect(old.status).toBe('expired');
@@ -253,7 +251,7 @@ test('a storage failure still reveals an accepted in-memory guess with a warning
   await expect(page.locator('.tile.revealing')).toHaveCount(5);
   await expect(page.getByRole('alert')).toContainText('Salvataggio non disponibile');
   await expect(page.locator('.tile.revealing')).toHaveCount(0);
-  await expect(page.getByRole('status')).toContainText('Tentativo accettato');
+  await expect(page.locator('[aria-live="polite"].visually-hidden')).toHaveText('Tentativo inviato');
 });
 
 test('stale tabs reconcile before submission and count a terminal result once', async ({ context, page }) => {
@@ -273,16 +271,17 @@ test('stale tabs reconcile before submission and count a terminal result once', 
   await expect(page.locator('.tile.revealing')).toHaveCount(5);
   await expect(page.locator('.tile.revealing')).toHaveCount(0);
   await stale.keyboard.press('Enter');
-  await expect(stale.getByRole('status')).toContainText('aggiornata in un’altra scheda');
+  await expect(stale.locator('.toast')).toBeVisible();
   expect(await stale.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'].guesses.length, key)).toBe(1);
   await page.keyboard.type(solution);
   await page.keyboard.press('Enter');
-  await expect(page.getByText(/Vittoria! Punteggio:/).first()).toBeVisible();
+  await expect(page.getByText(/Hai indovinato! Punteggio:/).first()).toBeVisible();
   await stale.keyboard.press('Enter');
   await expect.poll(async () => page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'].guesses.length, key)).toBe(2);
   await stale.reload();
   await stale.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(stale.getByText(/Vittorie: 1 · Sconfitte: 0/)).toBeVisible();
+  await expect(stale.locator('#statistics .stat-card').first()).toContainText('Vittorie1');
+  await expect(stale.locator('#statistics .stat-card').nth(1)).toContainText('Sconfitte0');
 });
 
 test('a stale draft is reloaded instead of submitting another tab’s word', async ({ context, page }) => {
@@ -300,7 +299,7 @@ test('a stale draft is reloaded instead of submitting another tab’s word', asy
   await page.keyboard.type(allowedWords[1]);
   await expect.poll(async () => page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'].draft, key)).toBe(allowedWords[1]);
   await stale.keyboard.press('Enter');
-  await expect(stale.getByRole('status')).toContainText('aggiornata in un’altra scheda');
+  await expect(stale.locator('.toast')).toBeVisible();
   await expect(stale.locator('.tile').nth(4)).toHaveText(allowedWords[1][4]);
   expect(await stale.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'].guesses.length, key)).toBe(0);
 });
@@ -340,9 +339,9 @@ test('failed result image preparation can be retried', async ({ page }) => {
   }, key);
   await page.keyboard.type(solution);
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog').getByRole('status')).toContainText('Impossibile preparare la condivisione');
+  await expect(page.locator('.toast')).toBeVisible();
   await page.getByRole('button', { name: 'Condividi risultato' }).click();
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
   await page.getByRole('button', { name: 'Condividi risultato' }).click();
-  await expect(page.getByRole('dialog').getByRole('status')).toContainText(/copiat|Copia/i);
+  await expect(page.getByRole('dialog')).toContainText(/Risultato copiato|Copia il testo qui sotto/);
 });

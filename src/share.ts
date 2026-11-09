@@ -70,22 +70,22 @@ export async function sharePrepared(result: PreparedResult): Promise<ShareOutcom
   try {
     supported = typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare(data);
   } catch {
-    return { kind: 'error', message: 'Impossibile verificare la condivisione. Riprova.' };
+    return { kind: 'error', message: 'Condivisione non disponibile. Riprova' };
   }
   if (supported) {
     try {
       await navigator.share(data);
-      return { kind: 'shared', message: 'Condivisione completata.' };
+      return { kind: 'shared', message: 'Condivisione completata' };
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return { kind: 'cancelled', message: '' };
-      return { kind: 'error', message: 'Impossibile condividere il risultato. Riprova.' };
+      return { kind: 'error', message: 'Condivisione non riuscita. Riprova' };
     }
   }
   try {
     if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
     await navigator.clipboard.writeText(result.text);
-    return { kind: 'copied', message: 'Risultato copiato negli appunti.' };
+    return { kind: 'copied', message: 'Risultato copiato' };
   } catch {
-    return { kind: 'manual', message: 'Copia automatica non riuscita. Copia il testo manualmente.', text: result.text };
+    return { kind: 'manual', message: 'Copia il testo qui sotto', text: result.text };
   }
 }

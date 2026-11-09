@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-test('production project site loads its assets and accepts a letter', async ({ page }) => {
+test('production project site loads its assets and accepts a letter', async ({ page, baseURL }) => {
   await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
   const failures: string[] = [];
   const assets: string[] = [];
   page.on('pageerror', error => failures.push(error.message));
   page.on('response', response => {
     const url = new URL(response.url());
-    if (url.origin !== 'http://127.0.0.1:4173') return;
+    if (url.origin !== new URL(baseURL!).origin) return;
     if (response.status() >= 400) failures.push(`${response.status()} ${url.pathname}`);
     if (url.pathname.includes('/assets/')) assets.push(url.pathname);
   });

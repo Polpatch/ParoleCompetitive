@@ -2,6 +2,13 @@
 
 ## 2026-11-09
 
+- Preserve page touch gestures while keeping embedded keyboard keys protected from selection and touch callouts.
+- Run browser smoke against a dedicated production preview, with a configurable port and no reuse of unrelated servers.
+- Preserve a current challenge's reveal and sharing feedback when an unrelated retired challenge is reconciled.
+- Add immediate embedded-key press feedback and controlled hold repetition, with cancellation across reveal, modal, and challenge changes.
+- Add cumulative-score cards and a six-column win histogram to the Statistiche tab, alongside a read-only expandable local match history in the Storico tab.
+- Adapt the compact game view to the visible viewport, move local-data guidance into the guide, and present brief feedback as a single pausable, dismissible toast.
+- Request touch zoom suppression where permitted; browser and system magnification overrides remain outside application control.
 - Replace the abandoned v2 schedule with an immutable, secret-selected daily publication from 8 November 2026, preserving earlier v1 assignments.
 - Wait for game input readiness before typing in browser verification.
 - Acquire only the published current-day selection; unavailable challenges wait without creating a game, with one acquisition per explicit retry and retained same-day offline play after assets and selection are acquired.

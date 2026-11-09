@@ -16,7 +16,7 @@ async function win(page: Page, withEarlierGuess = false): Promise<void> {
     const guess = allowedWords.find(word => word !== solution)!;
     await page.keyboard.type(guess);
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('status').first()).toContainText('Tentativo accettato');
+    await expect(page.locator('[aria-live="polite"].visually-hidden')).toHaveText('Tentativo inviato');
   }
   await page.keyboard.type(solution);
   await page.keyboard.press('Enter');
@@ -36,7 +36,7 @@ test('native share receives the private PNG directly from the gesture', async ({
   const dialog = page.getByRole('dialog', { name: 'Statistiche' });
   await expect(page.locator('main [data-action="share"]')).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Condividi risultato' }).click();
-  await expect(dialog.getByRole('status')).toContainText('Condivisione completata');
+  await expect(dialog.locator('.toast')).toBeVisible();
   const exported = await page.evaluate(async () => {
     const file = (window as Window & { sharedFile?: File }).sharedFile;
     if (!file) throw new Error('Native share did not receive a file');
@@ -64,7 +64,7 @@ test('denied clipboard leaves selectable private text above the fixed footer', a
   await win(page);
   const dialog = page.getByRole('dialog', { name: 'Statistiche' });
   await dialog.getByRole('button', { name: 'Condividi risultato' }).click();
-  await expect(dialog.getByRole('status')).toContainText('Copia automatica non riuscita');
+  await expect(dialog).toContainText('Copia il testo qui sotto');
   const text = dialog.getByLabel('Testo da copiare');
   const value = await text.inputValue();
   expect(value.split('\n')[4]).toBe('⬜⬜⬜⬜⬜');

@@ -1,6 +1,6 @@
 ---
 created: 2026-11-08T14:28:47.713Z
-updated: 2026-11-09T08:18:36.659Z
+updated: 2026-11-09T15:09:54.793Z
 summary: Adds the daily Italian word puzzle with local progress, preferences, statistics, and privacy-preserving sharing.
 tasks:
 - 4hjxvkgi
@@ -24,6 +24,8 @@ tasks:
 - a151zx5n
 - 62esccbu
 - sxn0vqo2
+- b81e71gs
+- w3fqu4q7
 cleared:
   4hjxvkgi:
     title: Parola giornaliera
@@ -620,6 +622,62 @@ cleared:
       - `scripts/generate-words.mjs` unisce fonti fissate, esclusioni, ordinamento hash v2 e verifica fingerprint; `data/README.md`, `data/schedule-v2.txt`, `data/solutions-v1.txt` documentano provenienza e calendario. Rimuovere il percorso v2 futuro mantenendo v1.
       - `tests/daily-word.test.ts` copre identità e ammissione del vocabolario, attivazione, Roma/DST e rigenerazione; aggiornare le asserzioni obsolete di permutazione, non ridurre i controlli di ammissione.
       - `src/main.ts:145-235` serializza riconciliazione storage e rivelazione; `src/daily-word.ts:32-78` osserva startup visibile, ritorno visibilità e mezzanotte romana. Riutilizzare il meccanismo di sessione della partita giornaliera. HMAC deve evitare precisione `Number`; identità canonica ordinata distinta dalla vecchia hash di permutazione. Nessun download fonti; impedire che risposte accodate o tardive dopo mezzanotte vengano applicate.
+  b81e71gs:
+    title: Integrazione e verifiche finali
+    refs:
+    - requirements/quality
+    - requirements/tech
+    technical: true
+    finished: 2026-11-09T13:36:27.377Z
+    body: |-
+      Completare l'integrazione e le verifiche rimaste interrotte nell'ultimo lavoro, preservando tutte le modifiche locali e senza rifare le funzionalità già realizzate. Il Model e i Requirements approvati restano il contratto: questa Task non introduce nuove funzionalità e non decide Drifts aperti.
+
+      Il resoconto dell'ultimo job riporta typecheck, build di produzione e 93 test unitari superati, ma una verifica browser con 19 fallimenti e 52 successi. La verifica inizialmente non poteva avviarsi perché la porta era occupata; la successiva esecuzione ha riutilizzato un server di sviluppo, quindi non dimostra la correttezza del sito di produzione. Alcune verifiche cercano ancora vecchi messaggi e vecchie statistiche, altre incontrano due controlli di chiusura omonimi. Non presumere che tutti i fallimenti siano soltanto test obsoleti: distinguere errori dell'ambiente, aspettative superate e difetti reali del comportamento.
+
+      Le verifiche devono esercitare una build di produzione completa sotto il prefisso di progetto configurato, non un server di sviluppo riutilizzato. Impiegare un ambiente o una porta libera senza terminare server estranei. Il fallimento già riportato costituisce la riproduzione: non rieseguire controlli soltanto per confermarlo. Dopo le correzioni, esercitare prima i percorsi interessati e completare una verifica integrata finale, con typecheck, test deterministici, build e smoke browser contro il sito realmente compilato. Non ottenere il verde saltando casi, indebolendo invarianti, aumentando arbitrariamente timeout o retry, o serializzando i test per nascondere corse.
+
+      Allineare soltanto le aspettative divenute obsolete alle decisioni già approvate: toast accessibili invece dei vecchi messaggi inline, nuova presentazione di statistiche e storico, e azioni di chiusura identificate nel contesto corretto. Le verifiche devono continuare a dimostrare comportamento e accessibilità osservabili, non fissare dettagli incidentali di testo o implementazione. Correggere gli eventuali difetti di integrazione necessari a rispettare il contratto, preservando input fisico e su schermo, pressioni prolungate, rivelazione, reduced motion, autocomplete, punteggi, statistiche, storico, salvataggi e condivisione senza lettere.
+
+      Completare in particolare la verifica interrotta della sostituzione/ritiro di una sfida con la finestra statistiche aperta e durante una rivelazione. La finestra deve rimanere utilizzabile e coerente, senza dati, durata, condivisione o feedback manuale del risultato ritirato. Una riconciliazione o un completamento tardivo non può cancellare la partita acquisita corrente, alterarne tentativi, scelta di autocomplete, tempi o risultato, interrompere una rivelazione valida della sfida corrente o far riapparire un recap obsoleto. Lo storico e i totali devono riflettere soltanto gli esiti ancora validi. Il test aggiunto dal lavoro interrotto è rimasto nel progetto, mentre la successiva correzione tentata non è stata applicata: verificare il comportamento reale, non limitarsi a mantenere il test esistente.
+
+      Il Drift d7qk5rv9, Global touch restriction, è separato e resta una decisione del developer. Non rimuovere o restringere automaticamente regole touch seguendo la sola raccomandazione del Drift: i Requirements distinguono selezione/callout sui tasti e soppressione dello zoom di pagina richiesta esplicitamente altrove. Questa Task non approva, scarta o decide quel Drift né modifica Model o Requirements. Se emerge un impedimento reale dipendente da quella decisione, documentarlo precisamente senza dichiarare completata una verifica non eseguita.
+
+      La Task è conclusa soltanto quando le verifiche proporzionate all'integrazione sono riuscite nell'ambiente corretto e il job ha completato il resoconto e la registrazione del lavoro secondo il normale processo. Distinguere controlli realmente esercitati da limiti di verifica su dispositivi touch o condivisione nativa. Aggiornare la documentazione inglese e il changelog soltanto quanto necessario per le correzioni effettive. Non riaprire o ricreare tutte le precedenti Tasks Done e non chiudere questa Task prima della verifica finale. Nessun provisioning o rotazione della chiave segreta, modifica di assegnazioni giornaliere, push o pubblicazione automatica: il rilascio delle nuove modifiche resta un'azione separata.
+
+      ## Code notes
+
+      Commit: 991659b661a43604f410e309f4d098dd260c44c1
+
+      - Working tree: 27 file modificati e 18 elementi non tracciati alla diagnosi; preservare il lavoro esistente. L'ultimo job era aljzeog8; la Task già Done 4qd9h5b9 aveva una verifica rimasta incompleta.
+      - `playwright.config.ts`: preview di produzione con prefisso /ParoleCompetitive/ sulla porta 4173; il server development già presente su quella porta ha invalidato l'ambiente della verifica precedente. Non riutilizzarlo come prova di produzione.
+      - `package.json`: mantenere gli script typecheck, test, build e smoke e il lockfile npm.
+      - `e2e/replacement.spec.ts`, righe 182-270 lette: casi con statistiche aperte, ritiro tardivo e rivelazione autocomplete; restano selettori role=status e formule testuali delle statistiche precedenti. Ultimo caso aggiunto: stale public progress cannot discard an acquired autocomplete reveal.
+      - `src/main.ts`, `src/statistics.ts`, `src/share.ts` e gli e2e di statistiche/condivisione/finestre contengono le modifiche di integrazione da preservare; verificare l'UI attuale prima di aggiornare selettori.
+      - `src/style.css`: regola globale html touch-action: manipulation; selezione e callout sono già limitati a .keyboard button. Consultare insieme i Requirements daily-game e game-interface prima di attribuire a questa regola un difetto.
+  w3fqu4q7:
+    title: 'Fix the code: Global touch restriction'
+    refs:
+    - requirements/ui#daily-game
+    technical: true
+    finished: 2026-11-09T15:08:18.598Z
+    body: |-
+      ## What happens
+
+      The game page applies `touch-action: manipulation` globally, restricting gestures outside embedded keys as well as on them.
+
+      ## What should happen
+
+      The interface requirement limits selection and touch-callout suppression to embedded keys and explicitly says not to disable page gestures for that purpose; other page content and gestures must remain unaffected.
+
+      ## Chosen option
+
+      ### Remove global touch rule
+
+      Remove the page-wide touch-action restriction and retain only the embedded-key selection and callout rules. This preserves browser gestures across the page.
+
+      ## Where in the code
+
+      src/style.css: global html touch-action rule
 ---
 # Daily Italian word game
 

@@ -12,7 +12,7 @@ async function openStatistics(page: Page) {
 
 test('concurrent tabs, repeated notifications and reload count a win once', async ({ context, page }) => {
   await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
-  await page.goto('/ParoleCompetitive/');
+  await page.goto(process.env.PAROLE_TEST_URL ?? '/ParoleCompetitive/');
   await expect.poll(() => page.evaluate(k => !!localStorage.getItem(k), key)).toBe(true);
   const solution = await page.evaluate(({ key, day }) => JSON.parse(localStorage.getItem(key)!).games[day].solution as string, { key, day });
   await page.keyboard.type(solution);
@@ -21,7 +21,7 @@ test('concurrent tabs, repeated notifications and reload count a win once', asyn
   const other = await context.newPage();
   await other.addInitScript(() => window.addEventListener('storage', event => event.stopImmediatePropagation()));
   await other.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
-  await other.goto('/ParoleCompetitive/');
+  await other.goto(process.env.PAROLE_TEST_URL ?? '/ParoleCompetitive/');
   await expect(other.locator('.tile').first()).toHaveText(solution[0]);
   await Promise.all([page.keyboard.press('Enter'), other.keyboard.press('Enter')]);
   await expect.poll(() => page.evaluate(({ key, day }) => JSON.parse(localStorage.getItem(key)!).games[day].status, { key, day })).toBe('won');
@@ -34,9 +34,10 @@ test('concurrent tabs, repeated notifications and reload count a win once', asyn
   await other.reload();
   for (const tab of [page, other]) {
     const statistics = await openStatistics(tab);
-    await expect(statistics).toContainText('Vittorie: 1 · Sconfitte: 0');
-    await expect(statistics).toContainText('Vittorie per tentativi: 1: 1 · 2: 0 · 3: 0 · 4: 0 · 5: 0 · 6: 0');
-    await expect(statistics).toContainText('Ultimo punteggio: 1500');
+    await expect(statistics.locator('.stat-card').nth(0)).toContainText('1');
+    await expect(statistics.locator('.stat-card').nth(1)).toContainText('0');
+    await expect(statistics.getByRole('img', { name: /Vittorie per tentativi/ })).toHaveAttribute('aria-label', /1: 1, 2: 0/);
+    await expect(statistics).toContainText('Punteggio totale: 1500');
   }
   const saved = await page.evaluate(({ key, day }) => JSON.parse(localStorage.getItem(key)!).games[day], { key, day });
   expect(saved.guesses).toHaveLength(1);
@@ -44,25 +45,25 @@ test('concurrent tabs, repeated notifications and reload count a win once', asyn
 
 test('unstarted and started expiries differ and remain counted once on reload', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
-  await page.goto('/ParoleCompetitive/');
+  await page.goto(process.env.PAROLE_TEST_URL ?? '/ParoleCompetitive/');
   const stats = await openStatistics(page);
-  await expect(stats).toContainText('Vittorie: 0 · Sconfitte: 0 · Ultimo punteggio: —');
-  await expect(stats).toContainText('1: 0 · 2: 0 · 3: 0 · 4: 0 · 5: 0 · 6: 0');
+  await expect(stats).toContainText('Punteggio totale: 0');
+  await expect(stats).toContainText('Nessuna vittoria ancora.');
   await page.clock.setFixedTime(new Date('2026-03-11T12:00:00Z'));
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-  await expect(page.getByRole('status')).toContainText('Nuova sfida');
-  await expect(stats).toContainText('Vittorie: 0 · Sconfitte: 0 · Ultimo punteggio: —');
+  await expect(page.locator('.toast')).toBeVisible();
+  await expect(stats).toContainText('Punteggio totale: 0');
   await expect.poll(() => page.evaluate(k => !!JSON.parse(localStorage.getItem(k)!).games['2026-03-11'], key)).toBe(true);
   const solution = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-11'].solution as string, key);
-  await page.getByRole('button', { name: 'Chiudi' }).click();
+  await page.getByRole('button', { name: 'Chiudi', exact: true }).click();
   await page.locator('.board').click();
   await page.keyboard.type(allowedWords.find(word => word !== solution)!);
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText('Tentativo accettato');
+  await expect(page.locator('[aria-live="polite"].visually-hidden')).toHaveText('Tentativo inviato');
   await openStatistics(page);
   await page.clock.setFixedTime(new Date('2026-03-12T12:00:00Z'));
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-  await expect(stats).toContainText('Vittorie: 0 · Sconfitte: 1 · Ultimo punteggio: 0');
+  await expect(stats.locator('.stat-card').nth(1)).toContainText('1');
   await page.reload();
-  await expect(await openStatistics(page)).toContainText('Vittorie: 0 · Sconfitte: 1 · Ultimo punteggio: 0');
+  await expect((await openStatistics(page)).locator('.stat-card').nth(1)).toContainText('1');
 });

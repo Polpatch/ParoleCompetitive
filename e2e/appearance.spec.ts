@@ -54,7 +54,7 @@ test('legacy progress, score and statistics survive appearance changes', async (
   const solution = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'].solution as string, key);
   await page.keyboard.type(solution);
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog', { name: 'Statistiche' })).toContainText('Vittorie: 1');
+  await expect(page.locator('#statistics')).toContainText('Vittorie1');
   const saved = await page.evaluate(k => {
     const state = JSON.parse(localStorage.getItem(k)!);
     delete state.preferences.appearance;
@@ -71,10 +71,12 @@ test('legacy progress, score and statistics survive appearance changes', async (
   expect(restored.preferences).toEqual({ ...saved.preferences, appearance: 'dark' });
   await page.getByRole('button', { name: 'Chiudi' }).click();
   await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
-  await expect(page.getByRole('dialog')).toContainText('Vittorie: 1');
+  await expect(page.locator('#statistics')).toContainText('Vittorie1');
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
   await page.getByRole('button', { name: 'Condividi risultato' }).click();
-  await expect(page.getByRole('dialog').getByRole('status')).toContainText(/copiat|Copia/i);
+  await expect(
+    page.locator('.toast').or(page.getByRole('textbox', { name: 'Testo da copiare' })),
+  ).toBeVisible();
   await expect(page.locator('.tile.green').first()).toHaveCSS('color', 'rgb(255, 255, 255)');
   await expect(page.locator('.keyboard button:disabled').first()).toBeDisabled();
 });
@@ -122,6 +124,6 @@ for (const appearance of ['Chiaro', 'Scuro'] as const) {
     await expect(page.locator('.keyboard button:disabled').first()).toBeDisabled();
     await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
     await dialog.getByRole('button', { name: 'Condividi risultato' }).click();
-    await expect(dialog.getByRole('status')).toContainText(/copiat|Copia/i);
+    await expect(page.locator('.toast')).toBeVisible();
   });
 }

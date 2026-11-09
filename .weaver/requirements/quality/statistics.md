@@ -1,0 +1,15 @@
+---
+description: Use when verifying cumulative statistics, charts and local match history.
+---
+# Statistics reliability
+
+## statistics
+- Verify one counted result after reload, repeated delivery or competing tabs, histogram placement for wins at one and six guesses, and started versus unstarted expiry. Empty days add neither wins nor losses.
+- Verify cumulative score equals the sum of surviving immutable scores, including distinct public-calendar and acquired challenges on one date; loss and started expiry add zero. An empty ledger has zero score and no history. Preserve older valid records and their locked choices and scores without migration loss or score recalculation.
+- Verify withdrawal removes only the superseded win/loss, correct histogram bucket, score contribution and historical entry, preserving other dates and the replacement's progress/result. Repeated withdrawal, reload and delayed old-challenge delivery cannot resurrect entries or double-count replacement outcomes.
+- Verify history eligibility and accepted-attempt counts for a first-guess win, a six-guess loss and an early started expiry; unstarted, unfinished, withdrawn and unrevealed terminal records are excluded. Verify newest-first ordering and deterministic ties, including separate challenges on the same date.
+- Exercise the actual 320 px and desktop statistics modal in light/dark appearance: side-by-side bordered counters and interrupted-border icons, cumulative total, proportional six-column histogram with readable counts, zero buckets and all-zero state. Observe accessible values, focus, text enlargement and no horizontal overflow rather than only DOM existence.
+- Exercise pointer and keyboard tab changes, independently expanded matches, static complete grids and metadata, empty history and local-data explanation. Verify no history interaction changes draft, guesses, timestamps, score or counted results, replays a reveal or invokes sharing. Saved feedback and non-color descriptions must match the retained guesses.
+- Exercise tab/expansion preservation across theme and day/storage updates, a withdrawal while an entry is focused, and repeated summary/history switching. Reopening resets to Statistiche with collapsed history; a newly submitted terminal result selects Statistiche only after its final reveal, including reduced motion. No solution word, score or history entry leaks before reveal.
+- Verify today's share action and its preparation/status/manual-copy presentation exist only in Statistiche, absent from Storico, and still export no letters. The last summary item and manual-copy text must scroll fully above the fixed footer. Restored current results remain shareable, expired history is not, and day/withdrawal updates remove obsolete sharing presentation without reviving it after late completion.
+- Update affected existing statistics/interface browser flows and meaningful aggregate regressions; document the delivered histogram, cumulative score, two tabs and read-only local history in the English README and changelog, reporting only exercised verification.
