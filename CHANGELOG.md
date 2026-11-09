@@ -3,6 +3,7 @@
 ## 2026-11-09
 
 - Preserve page touch gestures while keeping embedded keyboard keys protected from selection and touch callouts.
+- Size the compact board from the space left by the header and keyboard, preserving scrolling for larger text.
 - Run browser smoke against a dedicated production preview, with a configurable port and no reuse of unrelated servers.
 - Preserve a current challenge's reveal and sharing feedback when an unrelated retired challenge is reconciled.
 - Add immediate embedded-key press feedback and controlled hold repetition, with cancellation across reveal, modal, and challenge changes.

@@ -7,7 +7,8 @@ html[data-appearance="dark"] { color-scheme: dark; --page: #181818; --surface: #
 }
 html { color: var(--text); background: var(--page); }
 body { background: var(--page); }
-main { width: min(calc(100% - 2rem), 40rem); margin: auto; padding: max(.5rem, env(safe-area-inset-top)) 0 max(.5rem, env(safe-area-inset-bottom)); }
+main { display: flex; flex-direction: column; height: 100dvh; width: min(calc(100% - 2rem), 40rem); margin: auto; padding: max(.5rem, env(safe-area-inset-top)) 0 max(.5rem, env(safe-area-inset-bottom)); }
+main > :not(.board) { flex-shrink: 0; }
 header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem; }
 h1 { font-size: clamp(1.35rem, 5vw, 2rem); }
 main > header h1 { font-size: clamp(1rem, 4vw, 2rem); margin: .4rem 0; }
@@ -16,7 +17,7 @@ button, input { font: inherit; }
 button { border: 1px solid var(--border); border-radius: .4rem; background: var(--surface); color: var(--text); padding: .6rem; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .5; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid #d18c00; outline-offset: 2px; }
-.board { display: grid; width: min(100%, 18.7rem, max(10rem, calc((100dvh - 16rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 5 / 6))); grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; margin: .5rem auto; }
+.board { display: grid; flex: 1 1 auto; width: auto; max-width: min(100%, 18.7rem); min-height: 12rem; max-height: 22.5rem; aspect-ratio: 5 / 6; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; margin: .5rem auto; }
 .tile { aspect-ratio: 1; display: grid; place-items: center; border: 2px solid #aabbb2; font-size: 1.4rem; font-weight: bold; }
 .tile.revealing { animation: flip 1s ease-in-out; }
 @keyframes flip { 50% { transform: rotateX(90deg); } }
