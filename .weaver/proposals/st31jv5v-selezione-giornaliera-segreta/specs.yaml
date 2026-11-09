@@ -1,0 +1,46 @@
+languages:
+  - name: TypeScript
+  - name: CSS
+    chosenByAgent: Native styling avoids a component library for the agreed responsive static screen.
+  - name: HTML
+    chosenByAgent: Native browser markup and CSS keep the agreed framework-free UI small and accessible.
+frameworks:
+  - name: Vite
+  - name: Native browser APIs
+    note: DOM, Canvas 2D, Intl, Web Share and Clipboard APIs.
+    chosenByAgent: DOM avoids a UI framework; Canvas draws a letter-free export without screenshot dependencies; Intl handles Rome dates; feature-detected sharing and clipboard need no backend.
+data:
+  - name: localStorage
+    note: Versioned device-local daily games, acquired current-day selections, preferences and deduplicated outcome statistics; trusted client data.
+  - name: napolux/paroleitaliane
+    note: Pinned local curated lists with declared MIT attribution; document upstream provenance uncertainty and exclude separately licensed verb conjugations.
+  - name: Git daily-data branch
+    note: Append-only fixed assignments for already reached Rome dates; no secret or future sequence.
+testing:
+  - name: Vitest
+    chosenByAgent: Deterministic TypeScript rule tests without requiring a DOM runtime.
+  - name: Playwright
+    chosenByAgent: Exercise the real production-built static screen and Pages base path in a browser.
+ci:
+  - name: GitHub Actions
+    note: Pull-request/main verification plus trusted Rome-time daily and manual publication; one serialized official Pages path from verified main.
+repository:
+  - name: GitHub
+    note: Public ParoleCompetitive repository in the authenticated GitHub CLI account, origin remote and main branch; create during implementation without overwriting existing repositories.
+  - name: GitHub CLI
+    note: Authorized automatic repository and Pages provisioning; CLI currently absent and authentication must be available during implementation.
+deployment:
+  - name: GitHub Pages
+    note: Static project site and current daily selection under /ParoleCompetitive/; no backend and no PWA.
+cloud:
+  - name: No application cloud services
+    note: GitHub repository, Actions and Pages only; no accounts, API, database or score authority.
+infrastructure:
+  - name: GitHub workflow files
+    note: CI, trusted HMAC daily generation and Pages release; repository secret provisioned through authorized GitHub CLI, with no separate cloud infrastructure.
+notes: |
+  Use npm with a committed lockfile and one supported Node.js LTS release shared by local tooling and CI. Pin compatible stable package versions during implementation rather than asserting unverified versions in this setup.
+  Technology details chosen by the agent: Canvas 2D for a dedicated letter-free PNG result card avoids DOM screenshot dependencies; Web Share file capability detection with letter-free Clipboard API/manual-copy fallback preserves the agreed static-only release.
+  Native browser Intl time-zone conversion determines Europe/Rome calendar dates without a date library. Bundle all lexicons; no runtime source API or Wordle affiliation is claimed.
+  Secret selection begins on 2026-11-08 instead of the abandoned public v2 cutover. Node.js built-in crypto computes HMAC-SHA256 only in trusted generation; no added crypto service or browser key. The client acquires static daily/current.json and can reuse its valid retained selection for the same day only.
+  Browser data and clock are trusted; no cross-device synchronization or tamper-proof ranking. Current setup creates no application code and performs no repository creation or deployment.

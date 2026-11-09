@@ -1,10 +1,10 @@
-/** Future-game preferences are stored separately from daily game records. */
-export const PREFERENCES_STORAGE_KEY = 'parolecompetitive:preferences:v1';
-
 export type Difficulty = 'standard' | 'hard';
+export type Appearance = 'system' | 'light' | 'dark';
 export interface Preferences {
   difficulty: Difficulty;
   spoilerFree: boolean;
+  appearance: Appearance;
+  autocomplete?: boolean;
 }
 
 /** Minimal game state needed by the preference transition. */
@@ -14,34 +14,21 @@ export interface PreferenceGame {
 }
 
 export function defaultPreferences(): Preferences {
-  return { difficulty: 'standard', spoilerFree: true };
+  return { difficulty: 'standard', spoilerFree: true, appearance: 'system', autocomplete: false };
 }
 
 function validatePreferences(value: unknown): Preferences {
   if (!value || typeof value !== 'object') throw new TypeError('Invalid game preferences');
   const preferences = value as Record<string, unknown>;
   if ((preferences.difficulty !== 'standard' && preferences.difficulty !== 'hard') ||
-      typeof preferences.spoilerFree !== 'boolean') {
+      typeof preferences.spoilerFree !== 'boolean' ||
+      (preferences.appearance !== undefined && !['system', 'light', 'dark'].includes(preferences.appearance as string)) ||
+      (preferences.autocomplete !== undefined && typeof preferences.autocomplete !== 'boolean')) {
     throw new TypeError('Invalid game preferences');
   }
-  return { difficulty: preferences.difficulty, spoilerFree: preferences.spoilerFree };
+  return { difficulty: preferences.difficulty, spoilerFree: preferences.spoilerFree, appearance: (preferences.appearance ?? 'system') as Appearance, autocomplete: (preferences.autocomplete ?? false) as boolean };
 }
 
-/**
- * Read preferences from Storage. Missing data uses defaults; malformed data and
- * storage failures are thrown so the UI can warn the player.
- */
-export function loadPreferences(storage: Storage = globalThis.localStorage): Preferences {
-  const saved = storage.getItem(PREFERENCES_STORAGE_KEY);
-  return saved === null ? defaultPreferences() : validatePreferences(JSON.parse(saved));
-}
-
-/** Persist only preferences; never write or alter a completed game record. */
-export function savePreferences(preferences: Preferences, storage: Storage = globalThis.localStorage): Preferences {
-  const validated = validatePreferences(preferences);
-  storage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(validated));
-  return validated;
-}
 
 /** Whether the requested difficulty is selectable for the current game. */
 export function canSelectDifficulty(game: PreferenceGame | null, difficulty: Difficulty): boolean {

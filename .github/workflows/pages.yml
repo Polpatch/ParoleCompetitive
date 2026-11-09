@@ -4,12 +4,21 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: '7 0 * * *'
+      timezone: Europe/Rome
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'daily-publisher' }}
+  cancel-in-progress: false
+
 jobs:
-  verify:
+  pull-request:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,23 +32,128 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run smoke
-      - uses: actions/upload-pages-artifact@v3
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+  source:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      revision: ${{ steps.pin.outputs.revision }}
+    steps:
+      - uses: actions/checkout@v4
         with:
-          path: dist
-  deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: verify
+          ref: main
+      - id: pin
+        run: echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  record:
+    needs: source
     runs-on: ubuntu-latest
     permissions:
+      contents: write
+    outputs:
+      date: ${{ steps.record.outputs.date }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.revision }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Acquire durable data branch
+        run: |
+          mkdir "$RUNNER_TEMP/daily-data"
+          git -C "$RUNNER_TEMP/daily-data" init
+          git -C "$RUNNER_TEMP/daily-data" remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          remote_ref=$(git -C "$RUNNER_TEMP/daily-data" ls-remote --heads origin refs/heads/daily-data)
+          if [ -n "$remote_ref" ]; then
+            git -C "$RUNNER_TEMP/daily-data" fetch origin daily-data
+            git -C "$RUNNER_TEMP/daily-data" checkout -b daily-data FETCH_HEAD
+          else
+            git -C "$RUNNER_TEMP/daily-data" checkout --orphan daily-data
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Fix or reuse current record
+        id: record
+        env:
+          PAROLE_DAILY_HMAC_KEY: ${{ secrets.PAROLE_DAILY_HMAC_KEY }}
+        run: |
+          date=$(node scripts/publish-daily.mjs date)
+          node scripts/publish-daily.mjs publish "$RUNNER_TEMP/daily-data" "$date" "$RUNNER_TEMP/current.json"
+          echo "date=$date" >> "$GITHUB_OUTPUT"
+      - name: Persist immutable assignment
+        run: |
+          git -C "$RUNNER_TEMP/daily-data" config user.name github-actions\[bot\]
+          git -C "$RUNNER_TEMP/daily-data" config user.email 41898282+github-actions\[bot\]@users.noreply.github.com
+          git -C "$RUNNER_TEMP/daily-data" add -- '${{ steps.record.outputs.date }}.json'
+          if ! git -C "$RUNNER_TEMP/daily-data" diff --cached --quiet; then
+            git -C "$RUNNER_TEMP/daily-data" commit -m 'Fix daily assignment'
+            git -C "$RUNNER_TEMP/daily-data" push origin HEAD:refs/heads/daily-data
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: current-record
+          path: ${{ runner.temp }}/current.json
+          if-no-files-found: error
+          retention-days: 1
+
+  verify:
+    needs: [source, record]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.revision }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - uses: actions/download-artifact@v4
+        with:
+          name: current-record
+          path: dist/daily
+      - name: Record verified deployment metadata
+        env:
+          VERIFIED_REVISION: ${{ needs.source.outputs.revision }}
+          CANDIDATE_DATE: ${{ needs.record.outputs.date }}
+        run: node -e 'require("fs").writeFileSync("dist/deployment.json", JSON.stringify({revision:process.env.VERIFIED_REVISION,date:process.env.CANDIDATE_DATE})+"\n")'
+      - run: node scripts/publish-daily.mjs validate unused '${{ needs.record.outputs.date }}' dist/daily/current.json
+      - run: npx playwright install --with-deps chromium
+      - run: npm run smoke
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: [source, record, verify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    concurrency:
-      group: pages
-      cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.source.outputs.revision }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Guard promotion
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFIED_REVISION: ${{ needs.source.outputs.revision }}
+          CANDIDATE_DATE: ${{ needs.record.outputs.date }}
+        run: |
+          export CURRENT_REVISION=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          node scripts/publish-daily.mjs guard
+          echo "Verified source revision: $VERIFIED_REVISION" >> "$GITHUB_STEP_SUMMARY"
+          echo "Rome date: $CANDIDATE_DATE" >> "$GITHUB_STEP_SUMMARY"
       - id: deployment
         uses: actions/deploy-pages@v4

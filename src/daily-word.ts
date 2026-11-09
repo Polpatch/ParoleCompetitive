@@ -1,6 +1,6 @@
-import { allowedWords, solutionsV1 } from './word-data';
+import { allowedWords, solutionsV1, vocabularyId } from './word-data';
 
-export const SCHEDULE_VERSION = 'v1';
+export const ACTIVATION_DATE = '2026-11-08';
 export const allowedGuesses = new Set(allowedWords);
 const DAY = 86400000;
 const EPOCH = Date.UTC(2026, 0, 1);
@@ -20,8 +20,35 @@ function dayNumber(date: string): number {
 }
 
 export function wordForDate(date: string): DailyChallenge {
+  if (date >= ACTIVATION_DATE) throw new Error('Published selection required');
   const index = ((dayNumber(date) % solutionsV1.length) + solutionsV1.length) % solutionsV1.length;
-  return { date, word: solutionsV1[index], scheduleVersion: SCHEDULE_VERSION };
+  return { date, word: solutionsV1[index], scheduleVersion: 'v1' };
+}
+
+export interface DailySelection {
+  schema: 1;
+  date: string;
+  vocabularyId: string;
+  challengeId: string;
+  index: number;
+}
+
+export function validateSelection(value: unknown, date?: string): DailySelection | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (Object.keys(record).sort().join(',') !== 'challengeId,date,index,schema,vocabularyId' ||
+      record.schema !== 1 || typeof record.date !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(record.date) || record.date < ACTIVATION_DATE ||
+      (date !== undefined && record.date !== date) || record.vocabularyId !== vocabularyId ||
+      !Number.isInteger(record.index) || (record.index as number) < 0 || (record.index as number) >= allowedWords.length ||
+      record.challengeId !== `hmac-v1:${record.date}:${vocabularyId}`) return null;
+  const instant = Date.parse(`${record.date}T00:00:00Z`);
+  if (!Number.isFinite(instant) || new Date(instant).toISOString().slice(0, 10) !== record.date) return null;
+  return record as unknown as DailySelection;
+}
+
+export function challengeForSelection(selection: DailySelection): DailyChallenge {
+  return { date: selection.date, word: allowedWords[selection.index], scheduleVersion: selection.challengeId };
 }
 
 // Locate the start of the day after date in UTC, including DST transitions.
@@ -45,7 +72,7 @@ export interface DailyChallenge {
 }
 
 export interface DailyWordObserverOptions {
-  onDay: (challenge: DailyChallenge) => void;
+  onDay: (day: { date: string }) => void;
   now?: () => number;
   document?: Pick<Document, 'visibilityState' | 'addEventListener' | 'removeEventListener'>;
   setTimer?: typeof setTimeout;
@@ -60,7 +87,7 @@ export function observeDailyWord({ onDay, now = Date.now, document: doc = global
     if (timer !== undefined) clearTimer(timer);
     const instant = now();
     const date = romeDate(instant);
-    onDay(wordForDate(date));
+    onDay({ date });
     timer = setTimer(reconcile, Math.max(1, boundaryAfter(date) - instant));
   };
   doc?.addEventListener('visibilitychange', reconcile);

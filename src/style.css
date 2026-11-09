@@ -1,25 +1,43 @@
-:root { font-family: system-ui, sans-serif; color: #162b24; background: #f5f7f2; }
+:root { font-family: system-ui, sans-serif; color: var(--text); background: var(--page); --page: #f5f7f2; --surface: white; --text: #162b24; --border: #658377; }
 * { box-sizing: border-box; }
 body { margin: 0; }
+html[data-appearance="dark"] { color-scheme: dark; --page: #181818; --surface: #303030; --text: #f0f0f0; --border: #a0a0a0; }
+@media (prefers-color-scheme: dark) {
+  html[data-appearance="system"] { color-scheme: dark; --page: #181818; --surface: #303030; --text: #f0f0f0; --border: #a0a0a0; }
+}
+html { color: var(--text); background: var(--page); }
+body { background: var(--page); }
 main { width: min(100% - 2rem, 40rem); margin: auto; padding: 1rem 0 3rem; }
 header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
 h1 { font-size: clamp(1.35rem, 5vw, 2rem); }
+main > header h1 { font-size: clamp(1rem, 4vw, 2rem); }
+main > header > span { flex-basis: 100%; }
 button, input { font: inherit; }
-button { border: 1px solid #658377; border-radius: .4rem; background: white; color: #162b24; padding: .6rem; cursor: pointer; }
+button { border: 1px solid var(--border); border-radius: .4rem; background: var(--surface); color: var(--text); padding: .6rem; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .5; }
-button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #d18c00; outline-offset: 2px; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid #d18c00; outline-offset: 2px; }
 .board { display: grid; width: min(100%, 18.7rem); grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; margin: 1.25rem auto; }
 .tile { aspect-ratio: 1; display: grid; place-items: center; border: 2px solid #aabbb2; font-size: 1.4rem; font-weight: bold; }
 .tile.revealing { animation: flip 1s ease-in-out; }
 @keyframes flip { 50% { transform: rotateX(90deg); } }
 @media (prefers-reduced-motion: reduce) { .tile.revealing { animation: none; } }
-.green { background: #23754d; color: white; border-color: #23754d; }
-.yellow { background: #8a6500; color: white; border-color: #8a6500; }
-.gray { background: #53635b; color: white; border-color: #53635b; }
-.keyboard { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem; }
-.keyboard button { min-width: 2.4rem; }
-section, details { margin-top: 1rem; padding: 1rem; background: white; border-radius: .5rem; }
-summary { cursor: pointer; font-weight: bold; }
+.green, button.green { background: #23754d; color: white; border-color: #23754d; }
+.yellow, button.yellow { background: #8a6500; color: white; border-color: #8a6500; }
+.gray, button.gray { background: #53635b; color: white; border-color: #53635b; }
+.keyboard { display: grid; gap: .3rem; }
+.keyboard-row { display: flex; justify-content: center; gap: .2rem; }
+.keyboard-row:nth-child(2) { width: 90%; margin-inline: auto; }
+.keyboard-row button { flex: 1 1 0; min-width: 0; padding: .6rem .1rem; }
+.keyboard-row button[data-action] { flex: 1.7 1 0; font-size: .75rem; }
+header nav { display: flex; gap: .25rem; }
+header nav button { min-width: 2.5rem; }
+body.modal-open { overflow: hidden; }
+.backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 1rem; background: rgb(0 0 0 / .65); }
+.modal { width: min(100%, 36rem); max-height: calc(100dvh - 2rem); display: flex; flex-direction: column; margin: 0; padding: 1rem; background: var(--surface); color: var(--text); border-radius: .5rem; }
+.modal header { flex: none; }
+.modal h2 { margin: .5rem 0; }
+.modal-content { overflow-y: auto; min-height: 0; overflow-wrap: anywhere; }
+.modal footer { flex: none; padding-top: .75rem; border-top: 1px solid #aabbb2; }
 fieldset { border: 0; padding: 0; margin: 1rem 0; }
 label { display: block; margin: .6rem 0; }
 .notice { min-height: 1.5em; }

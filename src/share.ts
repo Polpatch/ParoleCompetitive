@@ -2,6 +2,7 @@ import type { Feedback, Game } from './game';
 
 export interface ResultSnapshot {
   readonly date: string;
+  readonly scheduleId: string;
   readonly outcome: 'won' | 'lost';
   readonly attempts: number;
   readonly score: number;
@@ -14,11 +15,11 @@ const colors: Record<Cell, string> = {
 };
 const symbols: Record<Cell, string> = { neutral: '⬜', gray: '⬛', yellow: '🟨', green: '🟩' };
 
-// Snapshot only public result data, after the caller has finished the reveal.
+// Snapshot the challenge identity and public result data after the reveal.
 export function snapshotResult(game: Game, today: string, revealed: boolean): ResultSnapshot | null {
   if (!revealed || game.date !== today || (game.status !== 'won' && game.status !== 'lost') || game.score === null) return null;
   return {
-    date: game.date, outcome: game.status, attempts: game.guesses.length, score: game.score,
+    date: game.date, scheduleId: game.scheduleId, outcome: game.status, attempts: game.guesses.length, score: game.score,
     rows: game.guesses.map(guess => [...guess.feedback]),
   };
 }
@@ -36,7 +37,7 @@ export function resultText(result: ResultSnapshot, spoilerFree = true): string {
   return [...summary(result), ...grid(result, spoilerFree).map(row => row.map(cell => symbols[cell]).join(''))].join('\n');
 }
 
-export interface PreparedResult { readonly file: File; readonly text: string }
+export interface PreparedResult { readonly date: string; readonly scheduleId: string; readonly file: File; readonly text: string }
 
 // Call before the share button gesture: canvas encoding is asynchronous.
 export async function prepareResult(result: ResultSnapshot, spoilerFree = true): Promise<PreparedResult> {
@@ -55,7 +56,7 @@ export async function prepareResult(result: ResultSnapshot, spoilerFree = true):
     ctx.fillRect(45 + x * 82, 220 + y * 82, 70, 70);
   }));
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Impossibile preparare l’immagine del risultato.')), 'image/png'));
-  return { file: new File([blob], 'risultato.png', { type: 'image/png' }), text: resultText(result, spoilerFree) };
+  return { date: result.date, scheduleId: result.scheduleId, file: new File([blob], 'risultato.png', { type: 'image/png' }), text: resultText(result, spoilerFree) };
 }
 
 export type ShareOutcome =

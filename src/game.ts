@@ -12,16 +12,17 @@ export interface Game {
   draft: string; startedAt: number | null; endedAt: number | null;
   status: GameStatus; score: number | null; startedHard: boolean;
   hard: boolean; bonusEligible: boolean;
+  autocomplete?: boolean;
 }
 
 const terminal = new Set(['won', 'lost', 'expired']);
 const rank: Record<Feedback, number> = { gray: 1, yellow: 2, green: 3 };
 
-export function createGame({ date, solution, scheduleId, hard = false }: { date: string; solution: string; scheduleId: string; hard?: boolean }): Game {
+export function createGame({ date, solution, scheduleId, hard = false, autocomplete = false }: { date: string; solution: string; scheduleId: string; hard?: boolean; autocomplete?: boolean }): Game {
   if (!/^[A-Z]{5}$/.test(solution)) throw new Error('Invalid solution');
   return { date, solution, scheduleId, guesses: [], draft: '', startedAt: null,
     endedAt: null, status: 'ready', score: null, startedHard: Boolean(hard),
-    hard: Boolean(hard), bonusEligible: Boolean(hard) };
+    hard: Boolean(hard), bonusEligible: Boolean(hard), autocomplete };
 }
 
 // Greens consume solution occurrences before yellows are allocated left to right.
@@ -71,7 +72,7 @@ export function hardConstraints(guesses: readonly Guess[]) {
   return { green, excluded, minimum };
 }
 
-export function scoreGame(guesses: readonly Pick<Guess, 'feedback'>[], startedAt: number, endedAt: number, bonusEligible: boolean): number {
+export function scoreGame(guesses: readonly Pick<Guess, 'feedback'>[], startedAt: number, endedAt: number, bonusEligible: boolean, autocomplete = false): number {
   let base = 1000, previousGreen = 0, previousYellow = 0, stagnation = 0;
   for (const { feedback } of guesses) {
     const green = feedback.filter(value => value === 'green').length;
@@ -85,7 +86,7 @@ export function scoreGame(guesses: readonly Pick<Guess, 'feedback'>[], startedAt
   }
   if (!guesses.length) return 0;
   const seconds = Math.max(0, (endedAt - startedAt) / 1000);
-  return Math.round(Math.max(0, base) / (guesses.length * (1 + seconds / 60)) * (bonusEligible ? 1.1 : 1));
+  return Math.round(Math.max(0, base) / (guesses.length * (1 + seconds / 60)) * (bonusEligible ? 1.1 : 1) * (autocomplete ? 0.98 : 1));
 }
 
 // Difficulty can be selected freely before the first accepted guess. After it,
@@ -97,13 +98,45 @@ export function setHard(game: Game, enabled: boolean): Game {
   return { ...game, hard: enabled, bonusEligible: game.bonusEligible && enabled };
 }
 
+/** Fixed positions are derived only from revealed accepted feedback. */
+export function fixedLetters(game: Game): string[] {
+  const fixed = ['', '', '', '', ''];
+  if (game.autocomplete) for (const guess of game.guesses) {
+    guess.feedback.forEach((feedback, index) => {
+      if (feedback === 'green') fixed[index] = guess.word[index];
+    });
+  }
+  return fixed;
+}
+
+export function editDraft(game: Game, key: string): Game {
+  if (terminal.has(game.status)) return game;
+  if (!game.autocomplete || game.guesses.length === 0) {
+    return setDraft(game, key === 'Backspace' ? game.draft.slice(0, -1) : game.draft + key);
+  }
+  const fixed = fixedLetters(game);
+  const cells = game.draft.padEnd(5, ' ').split('');
+  if (key === 'Backspace') {
+    for (let i = 4; i >= 0; i--) if (!fixed[i] && cells[i] !== ' ') {
+      cells[i] = ' ';
+      break;
+    }
+  } else {
+    const index = cells.findIndex((cell, i) => !fixed[i] && cell === ' ');
+    if (index !== -1) cells[index] = key;
+  }
+  return setDraft(game, cells.join(''));
+}
+
 // Draft changes are inert after a terminal outcome; callers enforce reveal locking.
 export function setDraft(game: Game, draft: string): Game {
   if (terminal.has(game.status)) return game;
-  if (!/^[A-Za-z]{0,5}$/.test(draft)) return game;
+  const positional = !!game.autocomplete && game.guesses.length > 0;
+  if (!(positional ? /^[A-Za-z ]{5}$/ : /^[A-Za-z]{0,5}$/).test(draft)) return game;
   const normalized = draft.toUpperCase();
+  if (positional && fixedLetters(game).some((letter, i) => letter && normalized[i] !== letter)) return game;
   const keys = keyboardKnowledge(game.guesses);
-  if ([...normalized].some(letter => keys[letter] === 'gray')) return game;
+  if ([...normalized].some(letter => letter !== ' ' && keys[letter] === 'gray')) return game;
   return { ...game, draft: normalized };
 }
 
@@ -116,6 +149,9 @@ export function submitGuess(game: Game, input: string, allowed: ReadonlySet<stri
     return { game, error: 'Inserisci esattamente cinque lettere dalla A alla Z.', accepted: false };
   }
   const word = input.toUpperCase();
+  if (game.autocomplete && fixedLetters(game).some((letter, i) => letter && word[i] !== letter)) {
+    return { game, error: 'Le lettere fisse non possono essere modificate.', accepted: false };
+  }
   const keys = keyboardKnowledge(game.guesses);
   if ([...word].some(letter => keys[letter] === 'gray')) {
     return { game, error: 'La parola contiene una lettera già esclusa.', accepted: false };
@@ -142,13 +178,14 @@ export function submitGuess(game: Game, input: string, allowed: ReadonlySet<stri
   const endedAt = won || lost ? now : null;
   const next: Game = { ...game, guesses, draft: '', startedAt, endedAt,
     status: won ? 'won' : lost ? 'lost' : 'playing',
-    score: won ? scoreGame(guesses, startedAt, now, game.bonusEligible) : lost ? 0 : null };
+    score: won ? scoreGame(guesses, startedAt, now, game.bonusEligible, game.autocomplete) : lost ? 0 : null };
+  if (!won && !lost && game.autocomplete) next.draft = fixedLetters(next).map(letter => letter || ' ').join('');
   return { game: next, error: null, accepted: true };
 }
 
 // The calendar supplies the actual Europe/Rome boundary, not discovery time.
 export function expireGame(game: Game, boundary: number): Game {
   if (terminal.has(game.status)) return game;
-  return { ...game, status: 'expired', endedAt: game.startedAt === null ? null : boundary,
+  return { ...game, draft: '', status: 'expired', endedAt: game.startedAt === null ? null : boundary,
     score: game.startedAt === null ? null : 0 };
 }

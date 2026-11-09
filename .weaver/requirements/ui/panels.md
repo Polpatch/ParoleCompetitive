@@ -1,0 +1,32 @@
+---
+description: Use when building appearance controls, modal navigation, result recaps and sharing feedback.
+---
+# Panels and result sharing
+
+## result-share
+- Enable sharing only for a won/lost game after its feedback reveal. Export a clean result card image, not the whole live page: title, date, outcome/attempt count, score and a six-by-five grid. Unused cells are neutral. No letters, solution or keyboard.
+- With spoiler-free enabled, the entire first row is neutral, including green/yellow/gray information; with it disabled, preserve first-row feedback colors but still omit letters. Apply the same concealment to the text fallback, using neutral placeholders instead of colored cells in its first row.
+- Show meaningful Italian success, failure or manual-copy feedback. Native cancellation is quiet and never triggers clipboard copying or a PNG download. No automatic PNG download fallback.
+- When the displayed result belongs to the withdrawn challenge, disable sharing and remove its obsolete manual-copy text and share-status feedback. Keep sharing disabled until the replacement game reaches a revealed won/lost result.
+- The only Condividi risultato action is in the statistics/result modal's bottom footer, available for the current day's revealed win/loss and absent for unfinished or expired games. Remove the duplicate game-page action. Keep the footer visible outside the scrolling information area; reserve its full height so every item, including the final item, can scroll entirely above it rather than underneath it.
+- Keep preparation, success, failure and manual-copy feedback within the modal. Place selectable manual-copy text in its scrollable area, reachable with keyboard and touch without obscuring it with the footer. Preserve existing capability detection, preparation/retry behavior and native user activation. Application appearance changes do not restyle the exported image or text.
+
+## game-appearance
+- Add an Aspetto control to the settings modal with the Italian choices Sistema, Chiaro and Scuro. Start with Sistema when no choice is saved; visibly identify the selected preference, not just the resolved light/dark appearance.
+- Apply selection changes immediately to the whole live interface, including panels, backdrop, board, keyboard, disabled controls, focus indicators, notices and sharing footer. With Sistema selected, immediately follow changes to the device's preferred color scheme; manual Chiaro and Scuro override those changes.
+- Preserve the current light appearance. Use a neutral very-dark-gray background with slightly lighter surfaces for dark appearance. Maintain readable text, distinct controls and visible focus in both palettes, preserving green/yellow/gray meanings and non-color tile descriptions. Do not add a separate high-contrast mode.
+- Changing appearance does not close the open modal, reset focus or scrolling unnecessarily, alter the game or its score, or redesign share artifacts.
+
+## game-interface
+- Replace the settings, playing guide and statistics accordions with three semantic icon buttons at the top right of the header: gear for Impostazioni, question mark for Come si gioca, and chart for Statistiche. Supply descriptive Italian accessible names; keep all three reachable on narrow screens.
+- Open one centered modal at a time, with an accessible title, an explicit Chiudi button, a dimmed backdrop and a height constrained to the viewport. Its content scrolls vertically on phone and desktop. Keep background content inert and prevent background scrolling while open.
+- Move focus into the modal, contain keyboard focus within it and close on Chiudi, Escape or a click/tap directly on the backdrop, never from interacting inside the panel. Return focus to its opener; after automatic result opening return focus to the Statistiche icon. Do not let modal keystrokes reach the game.
+- Preserve the current draft and the running solving clock when opening or closing panels. Retain the same panel during preference changes, appearance changes, result preparation and ordinary game/day/storage rerenders; keep its contents current and focus usable. A reload begins without an open panel.
+- Keep the existing complete guide, local-data explanations, difficulty rules and spoiler-free controls in their respective modals. Do not change difficulty locks, results, scores or statistic counting.
+
+## game-interface/Statistics open
+- Use the same statistics modal for manual opening and the automatic final recap. Before the current challenge is won/lost and revealed, show the existing statistics and empty states without a current-result duration or share action. Afterwards also show the current challenge outcome, fixed score and fixed solving duration, followed by the existing local totals and one-through-six distribution; keep the Condividi risultato footer visible at the bottom.
+- Display elapsed solving time from the recorded first accepted submission to the terminal submission, not to the end of the animation. Use m:ss below one hour and h:mm:ss from one hour, truncating fractional seconds for display only; a first-guess win shows 0:00. Do not add start/end clock times or alter score precision.
+- Automatically open once after the final feedback reveal of a newly won/lost game submitted in this tab. Immediately replace any other open modal. Do not automatically open for a reload, a restored result, a result observed from another tab, a dismissed recap, a nonterminal row, a day expiry or a withdrawn challenge. An old reveal finishing after a day change or a same-day challenge replacement must not open the obsolete recap.
+- Manual opening after restoring today's completed game includes the same fixed duration, score, statistics and sharing action. When the day changes while this modal remains open, update to the new challenge, removing the old current-result summary and sharing action while retaining aggregate statistics.
+- A vocabulary replacement keeps the modal open with usable focus, removes the withdrawn challenge's outcome, duration, score, share action, manual-copy text and share-status feedback, and refreshes aggregate statistics from surviving outcomes. This also applies when withdrawal is discovered after the activation day. Only the replacement challenge's own revealed won/lost result may supply a new recap and share action; delayed feedback from the withdrawn challenge must not restore either.

@@ -1,4 +1,12 @@
-import { evaluateGuess, scoreGame, type Game, type Guess } from './game';
+import { evaluateGuess, fixedLetters, scoreGame, type Game, type Guess } from './game';
+import { challengeForSelection, validateSelection } from './daily-word';
+
+export function hasValidAssignment(game: Game): boolean {
+  const selection = validateSelection((game as Game & { selection?: unknown }).selection, game.date);
+  if (!selection) return false;
+  const challenge = challengeForSelection(selection);
+  return game.solution === challenge.word && game.scheduleId === challenge.scheduleVersion;
+}
 
 /** Validate a stored game without substituting the current word schedule. */
 export function validatePersistedGame(value: unknown): Game {
@@ -8,7 +16,8 @@ export function validatePersistedGame(value: unknown): Game {
       typeof game.solution !== 'string' || !/^[A-Z]{5}$/.test(game.solution) ||
       typeof game.scheduleId !== 'string' || !game.scheduleId ||
       !Array.isArray(game.guesses) || game.guesses.length > 6 ||
-      typeof game.draft !== 'string' || !/^[A-Z]{0,5}$/.test(game.draft) ||
+      typeof game.draft !== 'string' || !(game.autocomplete && game.guesses.length && game.status === 'playing' ? /^[A-Z ]{5}$/ : /^[A-Z]{0,5}$/).test(game.draft) ||
+      (game.autocomplete !== undefined && typeof game.autocomplete !== 'boolean') ||
       typeof game.startedHard !== 'boolean' || typeof game.hard !== 'boolean' || typeof game.bonusEligible !== 'boolean' ||
       (game.bonusEligible && (!game.startedHard || !game.hard)) ||
       (game.hard && !game.startedHard) ||
@@ -16,6 +25,7 @@ export function validatePersistedGame(value: unknown): Game {
       (game.endedAt !== null && (typeof game.endedAt !== 'number' || !Number.isFinite(game.endedAt)))) {
     throw new Error('Invalid game');
   }
+  if ('selection' in game && !hasValidAssignment(game)) throw new Error('Invalid acquired selection');
   for (const guess of game.guesses as Guess[]) {
     if (!guess || typeof guess.word !== 'string' || !/^[A-Z]{5}$/.test(guess.word) ||
         !Array.isArray(guess.feedback) || guess.feedback.length !== 5) {
@@ -24,6 +34,8 @@ export function validatePersistedGame(value: unknown): Game {
     const feedback = evaluateGuess(game.solution, guess.word);
     if (guess.feedback.some((item, index) => item !== feedback[index])) throw new Error('Invalid guess');
   }
+  if (game.autocomplete && game.status === 'playing' &&
+      fixedLetters(game).some((letter, index) => letter && game.draft[index] !== letter)) throw new Error('Invalid fixed draft');
   const count = game.guesses.length;
   const winningIndex = game.guesses.findIndex(guess => guess.word === game.solution);
   if (winningIndex !== -1 && (game.status !== 'won' || winningIndex !== count - 1)) throw new Error('Invalid outcome');
@@ -36,7 +48,7 @@ export function validatePersistedGame(value: unknown): Game {
       if (!count || count >= 6 || winningIndex !== -1 || game.endedAt !== null || game.score !== null) throw new Error('Invalid playing game');
       break;
     case 'won':
-      if (winningIndex !== count - 1 || winningIndex < 0 || game.startedAt === null || game.endedAt === null || game.draft !== '' || game.score !== scoreGame(game.guesses, game.startedAt, game.endedAt, game.bonusEligible)) throw new Error('Invalid win');
+      if (winningIndex !== count - 1 || winningIndex < 0 || game.startedAt === null || game.endedAt === null || game.draft !== '' || game.score !== scoreGame(game.guesses, game.startedAt, game.endedAt, game.bonusEligible, game.autocomplete)) throw new Error('Invalid win');
       break;
     case 'lost':
       if (count !== 6 || winningIndex !== -1 || game.endedAt === null || game.score !== 0 || game.draft !== '') throw new Error('Invalid loss');

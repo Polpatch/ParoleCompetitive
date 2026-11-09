@@ -6,7 +6,7 @@ const key = 'parolecompetitive:session:v1';
 const day = '2026-03-10';
 
 async function openStatistics(page: Page) {
-  await page.getByText('Statistiche locali', { exact: true }).click();
+  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
   return page.locator('#statistics');
 }
 
@@ -52,11 +52,14 @@ test('unstarted and started expiries differ and remain counted once on reload', 
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await expect(page.getByRole('status')).toContainText('Nuova sfida');
   await expect(stats).toContainText('Vittorie: 0 · Sconfitte: 0 · Ultimo punteggio: —');
+  await expect.poll(() => page.evaluate(k => !!JSON.parse(localStorage.getItem(k)!).games['2026-03-11'], key)).toBe(true);
   const solution = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-11'].solution as string, key);
-  await page.getByRole('heading', { name: 'ParoleCompetitive' }).click();
+  await page.getByRole('button', { name: 'Chiudi' }).click();
+  await page.locator('.board').click();
   await page.keyboard.type(allowedWords.find(word => word !== solution)!);
   await page.keyboard.press('Enter');
   await expect(page.getByRole('status')).toContainText('Tentativo accettato');
+  await openStatistics(page);
   await page.clock.setFixedTime(new Date('2026-03-12T12:00:00Z'));
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await expect(stats).toContainText('Vittorie: 0 · Sconfitte: 1 · Ultimo punteggio: 0');

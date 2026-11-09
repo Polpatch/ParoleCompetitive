@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('production project site loads its assets and accepts a letter', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
   const failures: string[] = [];
   const assets: string[] = [];
   page.on('pageerror', error => failures.push(error.message));

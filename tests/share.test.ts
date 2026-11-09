@@ -11,14 +11,15 @@ const game: Game = { ...createGame({ date: '2026-01-01', solution: 'ALBER', sche
 
 afterEach(() => vi.unstubAllGlobals());
 
-test('snapshot is gated and strips all words and metadata without mutating the game', () => {
+test('snapshot is gated, retains challenge identity and strips words without mutating the game', () => {
   assert.equal(snapshotResult(game, game.date, false), null);
   assert.equal(snapshotResult(game, '2026-01-02', true), null);
   assert.equal(snapshotResult({ ...game, status: 'expired' }, game.date, true), null);
   const before = JSON.stringify(game);
   const snapshot = snapshotResult(game, game.date, true)!;
   assert.equal(JSON.stringify(game), before);
-  assert.doesNotMatch(JSON.stringify(snapshot), /PIANO|ALBER|private/);
+  assert.equal(snapshot.scheduleId, game.scheduleId);
+  assert.doesNotMatch(JSON.stringify(snapshot), /PIANO|ALBER/);
   game.guesses[0].feedback[0] = 'gray';
   assert.equal(snapshot.rows[0][0], 'green');
   game.guesses[0].feedback[0] = 'green';
@@ -44,7 +45,7 @@ test('PNG drawing contains only summary text and a neutral first row, text uses 
 });
 
 test('native support, fallback, denial, cancellation and errors have distinct outcomes', async () => {
-  const prepared = { file: new File(['png'], 'result.png', { type: 'image/png' }), text: 'risultato privato' };
+  const prepared = { date: game.date, scheduleId: game.scheduleId, file: new File(['png'], 'result.png', { type: 'image/png' }), text: 'risultato privato' };
   const share = vi.fn().mockResolvedValue(undefined);
   const copy = vi.fn().mockResolvedValue(undefined);
   const canShare = vi.fn().mockReturnValue(true);
