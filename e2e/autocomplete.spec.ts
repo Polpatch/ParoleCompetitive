@@ -30,6 +30,7 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
       }
     }, { key, saved });
     await page.goto('/ParoleCompetitive/');
+    await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
     await page.keyboard.type('AUDIO');
     await page.keyboard.press('Enter');
     await expect.poll(() => page.evaluate(({ key, date }) => JSON.parse(localStorage.getItem(key)!).games[date].guesses.length, { key, date })).toBe(1);
@@ -67,6 +68,7 @@ test('stale public progress cannot replace an acquired autocomplete reveal', asy
   await page.clock.pauseAt(instant);
   await page.addInitScript(({ key, saved }) => localStorage.setItem(key, JSON.stringify(saved)), { key, saved });
   await page.goto('/ParoleCompetitive/');
+  await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
   await page.keyboard.type('AUDIO');
   await page.keyboard.press('Enter');
   await expect(page.locator('.tile.revealing')).toHaveCount(5);
@@ -96,6 +98,7 @@ test('reload during reveal restores the committed next draft without replay', as
     }
   }, { key, saved });
   await page.goto('/ParoleCompetitive/');
+  await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
   await page.keyboard.type('AUDIO');
   await page.keyboard.press('Enter');
   await expect(page.locator('.tile.revealing')).toHaveCount(5);
