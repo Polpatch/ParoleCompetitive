@@ -7,6 +7,7 @@ for (const width of [320, 1280]) {
     await page.setViewportSize({ width, height: 812 });
     await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
     await page.goto('/ParoleCompetitive/');
+    await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
     await page.keyboard.type('AB');
     await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).games['2026-03-10'].draft, storageKey)).toBe('AB');
     const before = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).games['2026-03-10'], storageKey);
@@ -58,6 +59,7 @@ test('system appearance follows device changes without dismissing settings or ch
   await page.emulateMedia({ colorScheme: 'light' });
   await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
   await page.goto('/ParoleCompetitive/');
+  await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
   await page.keyboard.type('AB');
   await expect.poll(() => page.evaluate(key => JSON.parse(localStorage.getItem(key)!).games['2026-03-10'].draft, storageKey)).toBe('AB');
   const before = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).games['2026-03-10'], storageKey);

@@ -6,6 +6,7 @@ const key = 'parolecompetitive:session:v1';
 test('modal controls contain focus and preserve a draft', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
   await page.goto('/ParoleCompetitive/');
+  await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
   await page.keyboard.type('A');
   for (const name of ['Impostazioni', 'Come si gioca', 'Statistiche']) {
     const trigger = page.getByRole('button', { name, exact: true });
@@ -45,6 +46,7 @@ test('local first-guess victory opens one recap with fixed zero duration', async
 test('backdrop dismisses, panel clicks do not, and background stays inert', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
   await page.goto('/ParoleCompetitive/');
+  await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
   await page.keyboard.type('A');
   await page.getByRole('button', { name: 'Come si gioca', exact: true }).click();
   const dialog = page.getByRole('dialog');

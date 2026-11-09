@@ -6,6 +6,7 @@ test('system follows the device, manual choices override it, and the open settin
   await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/ParoleCompetitive/');
+  await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
   await page.keyboard.type('A');
   await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Impostazioni' });

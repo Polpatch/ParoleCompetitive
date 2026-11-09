@@ -19,6 +19,7 @@ for (const appearance of ['light', 'dark'] as const) {
       }
     }, { key, saved });
     await page.goto('/ParoleCompetitive/');
+    await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
     await page.keyboard.type('A');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('status')).toContainText('cinque lettere');

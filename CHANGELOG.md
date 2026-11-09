@@ -3,7 +3,7 @@
 ## 2026-11-09
 
 - Replace the abandoned v2 schedule with an immutable, secret-selected daily publication from 8 November 2026, preserving earlier v1 assignments.
-- Wait for game input readiness before typing in autocomplete browser verification.
+- Wait for game input readiness before typing in browser verification.
 - Acquire only the published current-day selection; unavailable challenges wait without creating a game, with one acquisition per explicit retry and retained same-day offline play after assets and selection are acquired.
 - Publish at 00:07 Europe/Rome when scheduling permits, with authorized manual recovery from an append-only daily-data record; secret provisioning and prospective key rotation require authorization.
 - Document that old public-calendar clients cannot be revoked, future offline challenges are not available, daily answers can repeat and today's answer is exposed in the browser.
