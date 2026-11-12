@@ -19,7 +19,8 @@ test('compact game and toast remain usable through modal rerenders', async ({ pa
   await expect(toast).toBeVisible();
   const bounds = await toast.boundingBox();
   expect(bounds!.x + bounds!.width / 2).toBeCloseTo(page.viewportSize()!.width / 2, 0);
-  expect(bounds!.y).toBeLessThan((await page.locator('h1').boundingBox())!.y);
+  const header = await page.locator('.topbar').boundingBox();
+  expect(bounds!.y).toBeLessThan(header!.y + header!.height);
   const text = await toast.innerText();
   await page.keyboard.press('Enter');
   await expect(toast).toHaveCount(1);
