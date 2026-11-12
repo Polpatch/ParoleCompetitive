@@ -1,8 +1,14 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { ACTIVATION_DATE } from '../src/daily-word';
 import { createGame, submitGuess } from '../src/game';
 import { defaultPreferences } from '../src/preferences';
 import { allowedWords, vocabularyId } from '../src/word-data';
+
+async function openAction(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
 
 const key = 'parolecompetitive:session:v1';
 const now = Date.parse(`${ACTIVATION_DATE}T12:00:00Z`);
@@ -35,10 +41,10 @@ test('withdrawal restores earlier statistics and persists a fresh replacement', 
   await expect(page.locator('.tile.green, .tile.yellow, .tile.gray')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Invio' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(page.locator('.stat-card').filter({ hasText: 'Vittorie' }).locator('strong')).toHaveText('1');
   await expect(page.locator('.stat-card').filter({ hasText: 'Sconfitte' }).locator('strong')).toHaveText('0');
-  await page.getByRole('dialog', { name: 'Statistiche' }).getByRole('button', { name: 'Chiudi', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Statistiche' }).getByRole('button', { name: 'Chiudi finestra', exact: true }).click();
   await page.locator('.board').click();
   await page.keyboard.type('audio');
   await page.keyboard.press('Enter');
@@ -69,7 +75,7 @@ test('concurrent opens serialize withdrawal and retain the replacement result', 
   await page.keyboard.press('Enter');
   await expect(page.getByText(/Hai indovinato! Punteggio:/).first()).toBeVisible();
   await other.reload();
-  await other.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(other, 'Statistiche');
   await expect(other.getByText(/Hai indovinato! Punteggio:/).first()).toBeVisible();
   const saved = await other.evaluate(({ key, date }) => JSON.parse(localStorage.getItem(key)!).games[date], { key, date: ACTIVATION_DATE });
   expect(saved.status).toBe('won');
@@ -175,7 +181,7 @@ test('late withdrawal discovered by an open tab reports the retired day without 
   expect(saved.games[ACTIVATION_DATE]).toBeUndefined();
   expect(saved.games[current.date]).toEqual(current);
   await expect(page.locator('.tile.green, .tile.yellow, .tile.gray')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(page.locator('.stat-card').filter({ hasText: 'Vittorie' }).locator('strong')).toHaveText('0');
   await expect(page.locator('.stat-card').filter({ hasText: 'Sconfitte' }).locator('strong')).toHaveText('0');
 });
@@ -184,7 +190,7 @@ test('late withdrawal keeps open statistics usable and excludes the retired matc
   await page.clock.setFixedTime(now + 86400000);
   await page.goto('/ParoleCompetitive/');
   await expect.poll(() => page.evaluate(k => !!JSON.parse(localStorage.getItem(k) ?? '{}').games?.['2026-11-09'], key)).toBe(true);
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   const dialog = page.getByRole('dialog', { name: 'Statistiche' });
   const old = submitGuess(createGame({ date: ACTIVATION_DATE, solution: 'AMORE', scheduleId: 'v1' }), 'AMORE', new Set(['AMORE']), now).game;
   await page.evaluate(({ key, date, old }) => {
@@ -201,7 +207,7 @@ test('late withdrawal keeps open statistics usable and excludes the retired matc
   await dialog.getByRole('tab', { name: 'Storico' }).click();
   await expect(dialog).not.toContainText('AMORE');
   await expect(dialog.getByRole('tab', { name: 'Storico' })).toHaveAttribute('aria-selected', 'true');
-  await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Chiudi finestra', exact: true }).click();
   await expect(dialog).toHaveCount(0);
 });
 
@@ -218,7 +224,7 @@ test('late withdrawal preserves the current day terminal reveal', async ({ page 
   await page.keyboard.type(current.solution);
   await page.keyboard.press('Enter');
   await expect(page.locator('.tile.revealing')).toHaveCount(5);
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   const old = submitGuess(createGame({ date: ACTIVATION_DATE, solution: 'AMORE', scheduleId: 'v1' }), 'AMORE', new Set(['AMORE']), now).game;
   await page.evaluate(({ key, date, old }) => {
     const saved = JSON.parse(localStorage.getItem(key)!);
@@ -245,10 +251,10 @@ test('stale public progress cannot discard an acquired autocomplete reveal', asy
   await page.clock.pauseAt(now);
   await page.goto('/ParoleCompetitive/');
   await expect.poll(() => page.evaluate(({ key, date }) => !!JSON.parse(localStorage.getItem(key) ?? '{}').games?.[date]?.selection, { key, date: ACTIVATION_DATE })).toBe(true);
-  await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+  await openAction(page, 'Impostazioni');
   await page.getByLabel('Autocomplete', { exact: true }).check();
   await expect.poll(() => page.evaluate(k => JSON.parse(localStorage.getItem(k)!).preferences.autocomplete, key)).toBe(true);
-  await page.getByRole('dialog', { name: 'Impostazioni' }).getByRole('button', { name: 'Chiudi', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Impostazioni' }).getByRole('button', { name: 'Chiudi finestra', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Impostazioni' })).toHaveCount(0);
   await page.locator('.board').click();
   await page.keyboard.type('audio');

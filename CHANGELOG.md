@@ -1,7 +1,19 @@
 # Changelog
 
+## 2026-11-12
+
+- Integrate the approved visual design into the production game, retaining real daily selections, local progress, rules, statistics and sharing.
+- Add a larger title with a short underline and an animated, contrasting capsule menu with minimal SVG icons and consistent focus return.
+- Restyle settings, guide, statistics and history dialogs while preserving their content, input locks and visible sharing footer.
+- Move the compact date below the board; place SVG Cancella on the left and Invio on the right of the last keyboard row.
+- Present softer top-center toasts with a small upper-right close icon and a 200 ms exit fade, preserving active lifetime, hover/focus pauses and immediate reduced-motion dismissal.
+- Release pointer capture when cancelling an embedded-key hold so navigation remains usable.
+- Adapt the built-site browser checks to the menu, accessible icon controls, board/date positioning and toast lifecycle.
+
 ## 2026-11-09
 
+- Anchor the keyboard above the bottom safe area, center the live board, and allow independent upper-area or whole-page scrolling as space requires. Playwright viewport tests ran against the development server at 320×568, 360×640, 390×844, 1280×800, 640×320 and 320×160.
+- Shorten historical match grids to the saved accepted attempts; live and shared grids retain six rows.
 - Preserve page touch gestures while keeping embedded keyboard keys protected from selection and touch callouts.
 - Size the compact board from the space left by the header and keyboard, preserving scrolling for larger text.
 - Run browser smoke against a dedicated production preview, with a configurable port and no reuse of unrelated servers.

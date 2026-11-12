@@ -1,8 +1,14 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { createGame, editDraft, submitGuess } from '../src/game';
 import { defaultPreferences } from '../src/preferences';
 import { ACTIVATION_DATE } from '../src/daily-word';
 import { allowedWords, vocabularyId } from '../src/word-data';
+
+async function openAction(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
 
 const key = 'parolecompetitive:session:v1';
 const date = '2026-03-10';
@@ -135,6 +141,6 @@ test('replacement discards a partly entered old positional draft', async ({ page
   await expect(page.locator('.tile').first()).toHaveText('A');
   await page.reload();
   await expect(page.locator('.tile').first()).toHaveText('A');
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie1');
 });

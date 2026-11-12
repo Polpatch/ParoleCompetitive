@@ -1,4 +1,10 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+
+async function openAction(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
 
 test('compact game and toast remain usable through modal rerenders', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
@@ -11,17 +17,24 @@ test('compact game and toast remain usable through modal rerenders', async ({ pa
   await page.keyboard.press('Enter');
   const toast = page.locator('.toast');
   await expect(toast).toBeVisible();
+  const bounds = await toast.boundingBox();
+  expect(bounds!.x + bounds!.width / 2).toBeCloseTo(page.viewportSize()!.width / 2, 0);
+  expect(bounds!.y).toBeLessThan((await page.locator('h1').boundingBox())!.y);
   const text = await toast.innerText();
   await page.keyboard.press('Enter');
   await expect(toast).toHaveCount(1);
   expect(await toast.innerText()).toBe(text);
   await page.clock.fastForward(1000);
-  await page.getByRole('button', { name: 'Come si gioca' }).click();
-  await expect(page.getByRole('dialog').locator('.toast')).toBeVisible();
-  await expect(page.getByRole('dialog')).toContainText('non si sincronizzano');
+  await openAction(page, 'Come si gioca');
+  const dialog = page.getByRole('dialog');
+  const inDialogToast = dialog.locator('.toast');
+  await expect(inDialogToast).toBeVisible();
+  await expect(dialog).toContainText('non si sincronizzano');
   await page.keyboard.press('Escape');
-  await expect(page.locator('main .toast')).toBeVisible();
+  await expect(page.locator('.toast')).toBeVisible();
   await page.clock.fastForward(3001);
+  await expect(toast).toHaveClass(/is-closing/);
+  await page.clock.fastForward(200);
   await expect(toast).toHaveCount(0);
 });
 
@@ -36,11 +49,12 @@ test('toast pauses on hover and can be dismissed without blocking the game', asy
   await page.clock.fastForward(5000);
   await expect(toast).toBeVisible();
   await toast.getByRole('button', { name: 'Chiudi notifica' }).click();
+  await expect(toast).toHaveClass(/is-closing/);
+  await page.clock.fastForward(200);
   await expect(toast).toHaveCount(0);
   await page.getByRole('button', { name: 'A', exact: true }).click();
   await expect(page.locator('.tile').first()).toHaveText('A');
 });
-
 test('repeated Enter is deduplicated and keyboard focus pauses the active lifetime', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-03-10T12:00:00Z') });
   await page.goto(process.env.PAROLE_TEST_URL ?? '/ParoleCompetitive/');
@@ -55,11 +69,12 @@ test('repeated Enter is deduplicated and keyboard focus pauses the active lifeti
   await page.clock.fastForward(1000);
   await page.getByRole('button', { name: 'Chiudi notifica' }).focus();
   await page.clock.fastForward(5000);
-  await expect(page.locator('.toast')).toBeVisible();
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).focus();
+  await openAction(page, 'Statistiche');
   await page.clock.fastForward(2500);
   await expect(page.locator('.toast')).toBeVisible();
   await page.clock.fastForward(600);
+  await expect(page.locator('.toast')).toHaveClass(/is-closing/);
+  await page.clock.fastForward(200);
   await expect(page.locator('.toast')).toHaveCount(0);
 });
 
@@ -84,17 +99,16 @@ for (const [width, height] of [[360, 640], [390, 844], [1280, 800]]) {
     await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
     for (const name of ['Impostazioni', 'Come si gioca', 'Statistiche']) {
-      const opener = page.getByRole('button', { name, exact: true });
-      await opener.focus();
-      await page.keyboard.press('Enter');
+      await page.locator('#menu-trigger').click();
+      await page.getByRole('button', { name, exact: true }).click();
       const dialog = page.getByRole('dialog', { name });
       await expect(dialog).toBeVisible();
       await expect(page.locator('main')).toHaveAttribute('inert', '');
-      await expect(dialog.getByRole('button', { name: 'Chiudi', exact: true })).toBeFocused();
+      await expect(dialog.getByRole('button', { name: 'Chiudi finestra', exact: true })).toBeFocused();
       await page.keyboard.press('Escape');
-      await expect(opener).toBeFocused();
+      await expect(page.locator('#menu-trigger')).toBeFocused();
     }
-    await page.getByRole('button', { name: 'Come si gioca' }).click();
+    await openAction(page, 'Come si gioca');
     const content = page.locator('.modal-content');
     expect(await content.evaluate(element => getComputedStyle(element).overflowY)).toBe('auto');
     if (height === 640) expect(await content.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);

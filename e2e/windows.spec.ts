@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { allowedWords } from '../src/word-data';
+
+async function openAction(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
 
 const key = 'parolecompetitive:session:v1';
 
@@ -9,8 +15,7 @@ test('modal controls contain focus and preserve a draft', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
   await page.keyboard.type('A');
   for (const name of ['Impostazioni', 'Come si gioca', 'Statistiche']) {
-    const trigger = page.getByRole('button', { name, exact: true });
-    await trigger.click();
+    await openAction(page, name);
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAccessibleName(name);
@@ -19,9 +24,9 @@ test('modal controls contain focus and preserve a draft', async ({ page }) => {
     await expect.poll(() => dialog.evaluate(el => el.contains(document.activeElement))).toBe(true);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
-    await expect(trigger).toBeFocused();
+    await expect(page.locator('#menu-trigger')).toBeFocused();
   }
-  await expect.poll(() => page.evaluate(k => Object.values(JSON.parse(localStorage.getItem(k)!).games).some((game: any) => game.draft === 'A'), key)).toBe(true);
+  await expect.poll(() => page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'].draft, key)).toBe('A');
 });
 
 test('local first-guess victory opens one recap with fixed zero duration', async ({ page }) => {
@@ -35,11 +40,11 @@ test('local first-guess victory opens one recap with fixed zero duration', async
   const dialog = page.getByRole('dialog', { name: 'Statistiche' });
   await expect(dialog).toContainText('0:00');
   await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toBeVisible();
-  await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Statistiche', exact: true })).toBeFocused();
+  await dialog.getByRole('button', { name: 'Chiudi finestra', exact: true }).click();
+  await expect(page.locator('#menu-trigger')).toBeFocused();
   await page.reload();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(dialog).toContainText('0:00');
 });
 
@@ -48,7 +53,7 @@ test('backdrop dismisses, panel clicks do not, and background stays inert', asyn
   await page.goto('/ParoleCompetitive/');
   await expect(page.getByRole('button', { name: 'A', exact: true })).toBeEnabled();
   await page.keyboard.type('A');
-  await page.getByRole('button', { name: 'Come si gioca', exact: true }).click();
+  await openAction(page, 'Come si gioca');
   const dialog = page.getByRole('dialog');
   await expect(page.locator('main')).toHaveAttribute('inert', '');
   await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
@@ -58,7 +63,7 @@ test('backdrop dismisses, panel clicks do not, and background stays inert', asyn
   await expect(page.locator('.tile').nth(1)).toHaveText('');
   await page.locator('.backdrop').click({ position: { x: 2, y: 2 } });
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Come si gioca', exact: true })).toBeFocused();
+  await expect(page.locator('#menu-trigger')).toBeFocused();
 });
 
 test('an open statistics dialog follows the next day without its previous result', async ({ page }) => {
@@ -94,7 +99,7 @@ test('recap duration is fixed at the terminal submission, including hours', asyn
   const dialog = page.getByRole('dialog', { name: 'Statistiche' });
   await expect(dialog).toContainText('Durata: 1:01:01');
   await page.clock.setFixedTime(new Date('2026-03-10T14:00:00Z'));
-  await dialog.getByRole('button', { name: 'Chiudi', exact: true }).click();
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Chiudi finestra', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(dialog).toContainText('Durata: 1:01:01');
 });

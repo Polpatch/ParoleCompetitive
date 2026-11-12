@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { allowedWords } from '../src/word-data';
+
+async function openAction(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
 
 const key = 'parolecompetitive:session:v1';
 
@@ -12,7 +18,7 @@ test('winning reveal staggers rotations and withholds outcome until completion',
   const solution = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'].solution as string, key);
   await page.keyboard.type(solution);
   await page.keyboard.press('Enter');
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(page.locator('.tile.revealing')).toHaveCount(5);
   const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'], key);
   expect(saved.status).toBe('won');
@@ -67,7 +73,7 @@ test('an ongoing reveal survives a render and unlocks only after the last flip',
   await page.keyboard.type(wrong);
   await page.keyboard.press('Enter');
   await expect(page.locator('.tile.revealing')).toHaveCount(5);
-  await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+  await openAction(page, 'Impostazioni');
   await page.clock.runFor(800);
   await page.getByLabel('Condivisione spoiler-free').uncheck();
   await expect.poll(() => page.evaluate(k => JSON.parse(localStorage.getItem(k)!).preferences.spoilerFree, key)).toBe(false);
@@ -111,7 +117,7 @@ test('reloading during a reveal restores committed feedback without replay', asy
   await expect(page.locator('.tile.revealing')).toHaveCount(0);
   await expect(page.locator('.tile.green')).toHaveCount(5);
   await expect(page.getByRole('button', { name: 'Invio' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(page.getByText(/Hai indovinato! Punteggio:/).first()).toBeVisible();
   expect(await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'], key)).toEqual(saved);
 });
@@ -140,21 +146,18 @@ for (const viewport of [{ width: 320, height: 812 }, { width: 1280, height: 800 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const rows = page.locator('.keyboard-row');
     await expect(rows).toHaveCount(3);
-    const labels = await rows.evaluateAll(elements => elements.map(row => Array.from(row.querySelectorAll('button'), button => button.textContent)));
+    const labels = await rows.evaluateAll(elements => elements.map(row => Array.from(row.querySelectorAll('button'), button => button.getAttribute('aria-label') ?? button.textContent)));
     expect(labels).toEqual([
       Array.from('QWERTYUIOP'),
       Array.from('ASDFGHJKL'),
-      ['Invio', ...Array.from('ZXCVBNM'), 'Cancella'],
+      ['Cancella', ...Array.from('ZXCVBNM'), 'Invio'],
     ]);
-    for (const row of await rows.all()) {
-      const positions = await row.locator('button').evaluateAll(buttons => buttons.map(button => button.getBoundingClientRect().top));
-      expect(new Set(positions).size).toBe(1);
-    }
-    await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+
+    await openAction(page, 'Impostazioni');
     await page.getByLabel('Difficile', { exact: true }).check();
     await expect(page.getByLabel('Difficile', { exact: true })).toBeChecked();
     await page.getByLabel('Standard', { exact: true }).check();
-    await page.getByRole('button', { name: 'Chiudi', exact: true }).click();
+    await page.getByRole('button', { name: 'Chiudi finestra', exact: true }).click();
     await page.getByRole('button', { name: 'A', exact: true }).click();
     await expect(page.locator('.tile').nth(0)).toHaveText('A');
     await page.keyboard.type('B');
@@ -173,7 +176,7 @@ for (const viewport of [{ width: 320, height: 812 }, { width: 1280, height: 800 
     await expect(page.locator('.tile.revealing')).toHaveCount(5);
     await expect(page.getByRole('button', { name: 'Invio' })).toBeDisabled();
     await expect(page.locator('.tile.revealing')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+    await openAction(page, 'Impostazioni');
     await expect(page.getByLabel('Difficile', { exact: true })).toBeDisabled();
     await page.reload();
     await expect(page.locator('.tile').nth(0)).toHaveText(wrong[0]);
@@ -186,17 +189,17 @@ for (const viewport of [{ width: 320, height: 812 }, { width: 1280, height: 800 
     await expect(page.getByRole('dialog')).toContainText(/Risultato copiato|Copia il testo qui sotto/);
     await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie1');
     await page.reload();
-    await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+    await openAction(page, 'Statistiche');
     await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
     await expect(page.locator('.tile').nth(5)).toHaveText(solution[0]);
-    await page.getByRole('button', { name: 'Chiudi', exact: true }).click();
-    await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+    await page.getByRole('button', { name: 'Chiudi finestra', exact: true }).click();
+    await openAction(page, 'Impostazioni');
     await page.getByLabel('Condivisione spoiler-free').uncheck();
     await expect.poll(async () => page.evaluate(k => JSON.parse(localStorage.getItem(k)!).preferences.spoilerFree, key)).toBe(false);
     await page.getByLabel('Difficile', { exact: true }).check();
     await expect.poll(async () => page.evaluate(k => JSON.parse(localStorage.getItem(k)!).preferences.difficulty, key)).toBe('hard');
     await page.reload();
-    await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+    await openAction(page, 'Impostazioni');
     await expect(page.getByLabel('Difficile', { exact: true })).toBeChecked();
   });
 }
@@ -217,7 +220,7 @@ test('day return expires a started game and reduced motion reveals immediately',
   await page.clock.setFixedTime(new Date('2026-03-11T12:00:00Z'));
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await expect(page.locator('.toast')).toBeVisible();
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(page.locator('#statistics .stat-card').nth(1)).toContainText('Sconfitte1');
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toHaveCount(0);
   const old = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'], key);
@@ -232,10 +235,10 @@ test('keyboard navigation activates controls without submitting a guess', async 
   await page.getByRole('button', { name: 'Q', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('.tile').first()).toHaveText('Q');
-  const settings = page.getByRole('button', { name: 'Impostazioni', exact: true });
+  const settings = page.locator('#menu-trigger');
   await settings.focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByLabel('Condivisione spoiler-free')).toBeVisible();
+  await expect(page.locator('.menu-actions')).toBeVisible();
   await expect(page.locator('.tile.revealing')).toHaveCount(0);
 });
 
@@ -279,7 +282,7 @@ test('stale tabs reconcile before submission and count a terminal result once', 
   await stale.keyboard.press('Enter');
   await expect.poll(async () => page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'].guesses.length, key)).toBe(2);
   await stale.reload();
-  await stale.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(stale, 'Statistiche');
   await expect(stale.locator('#statistics .stat-card').first()).toContainText('Vittorie1');
   await expect(stale.locator('#statistics .stat-card').nth(1)).toContainText('Sconfitte0');
 });

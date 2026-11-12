@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { createGame } from '../src/game';
 import { defaultPreferences } from '../src/preferences';
+
+async function openAction(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
 
 const key = 'parolecompetitive:session:v1';
 const date = '2026-03-10';
@@ -23,7 +29,7 @@ for (const appearance of ['light', 'dark'] as const) {
     await page.keyboard.type('A');
     await page.keyboard.press('Enter');
     await expect(page.locator('.toast')).toContainText(/Servono 5 lettere/);
-    await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+    await openAction(page, 'Impostazioni');
     const dialog = page.getByRole('dialog', { name: 'Impostazioni' });
     const toggle = dialog.getByRole('checkbox', { name: 'Autocomplete' });
     await expect(toggle).not.toBeChecked();
@@ -42,7 +48,7 @@ for (const appearance of ['light', 'dark'] as const) {
     await page.keyboard.type('UDIO');
     await page.keyboard.press('Enter');
     await expect(page.locator('[aria-live="polite"].visually-hidden')).toHaveText('Tentativo inviato');
-    await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+    await openAction(page, 'Impostazioni');
     await expect(toggle).toBeDisabled();
     await expect(toggle).toHaveAccessibleDescription(/bloccata durante la partita/i);
     await expect(dialog.getByLabel('Condivisione spoiler-free')).toBeEnabled();
@@ -53,8 +59,8 @@ for (const appearance of ['light', 'dark'] as const) {
     await page.keyboard.type('MORE');
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog', { name: 'Statistiche' })).toBeVisible();
-    await page.getByRole('button', { name: 'Chiudi', exact: true }).click();
-    await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+    await page.getByRole('button', { name: 'Chiudi finestra', exact: true }).click();
+    await openAction(page, 'Impostazioni');
     await expect(toggle).toBeEnabled();
     await expect(toggle).toHaveAccessibleDescription(/solo le partite future/i);
     await toggle.uncheck();
@@ -83,7 +89,7 @@ test('a stale tab cannot change either autocomplete choice after another tab sta
   await stale.addInitScript(() => window.addEventListener('storage', event => event.stopImmediatePropagation()));
   await stale.clock.setFixedTime(new Date(`${date}T12:00:00Z`));
   await stale.goto('/ParoleCompetitive/');
-  await stale.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+  await openAction(stale, 'Impostazioni');
   const toggle = stale.getByRole('checkbox', { name: 'Autocomplete' });
   await expect(toggle).toBeEnabled();
   await page.keyboard.type('AUDIO');
@@ -96,7 +102,7 @@ test('a stale tab cannot change either autocomplete choice after another tab sta
   expect(session.preferences.autocomplete).toBe(false);
   expect(session.games[date].autocomplete).toBe(false);
   await stale.reload();
-  await stale.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+  await openAction(stale, 'Impostazioni');
   await expect(toggle).toBeDisabled();
   await expect(toggle).not.toBeChecked();
 });

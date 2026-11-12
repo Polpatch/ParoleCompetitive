@@ -1,0 +1,95 @@
+/* Production modal presentation. Keep all rules scoped to the real modal portal. */
+body.modal-open { overflow: hidden; }
+.backdrop {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: rgb(13 22 17 / .62);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+.modal {
+  position: relative;
+  width: min(100%, 36rem);
+  max-height: calc(100vh - max(2rem, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+  max-height: calc(100dvh - max(2rem, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+  padding: clamp(1rem, 4vw, 1.5rem);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1.15rem;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.modal > header.modal-header, .modal > header {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding-bottom: .8rem;
+  border-bottom: 1px solid var(--border);
+}
+.modal > header h2 { margin: 0; font-size: clamp(1.25rem, 5vw, 1.65rem); letter-spacing: -.035em; line-height: 1.2; overflow-wrap: anywhere; }
+.modal-eyebrow { margin: 0 0 .2rem; color: var(--muted); font-size: .76rem; font-weight: 700; letter-spacing: .04em; }
+.modal > header > button { flex: none; min-width: 2.75rem; min-height: 2.75rem; display: grid; place-items: center; padding: .55rem; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-raised); color: var(--text); cursor: pointer; }
+.modal > header > button .od-icon { width: 1.2rem; height: 1.2rem; }
+.modal-content { min-height: 0; flex: 1 1 auto; padding-block: .85rem; overflow: auto; overscroll-behavior: contain; overflow-wrap: anywhere; scrollbar-gutter: stable; }
+.modal > footer { flex: 0 0 auto; display: flex; justify-content: flex-end; gap: .5rem; padding-top: .75rem; border-top: 1px solid var(--border); background: var(--surface); }
+.modal > footer button { width: 100%; min-height: 2.75rem; padding: .6rem 1rem; border: 1px solid var(--accent); border-radius: .7rem; background: var(--accent); color: var(--accent-ink); font-weight: 700; cursor: pointer; }
+.modal > footer button:disabled { opacity: .55; cursor: not-allowed; }
+.modal fieldset { min-width: 0; margin: 0 0 .9rem; padding: .7rem .8rem; border: 1px solid var(--border); border-radius: .7rem; }
+.modal fieldset legend { padding-inline: .3rem; font-weight: 700; }
+.modal fieldset label, .modal-content > label { display: flex; align-items: flex-start; gap: .55rem; margin-block: .5rem; line-height: 1.45; cursor: pointer; }
+.modal input[type="radio"], .modal input[type="checkbox"] { flex: none; margin-top: .2em; accent-color: var(--accent); }
+.modal fieldset p, .modal-content > p { line-height: 1.55; }
+.modal #hard-explanation, .modal #autocomplete-explanation, .modal #autocomplete-state { margin: .35rem 0 .8rem; color: var(--muted); font-size: .9em; line-height: 1.55; }
+.modal-content > p:first-child { margin-top: 0; }
+.modal-content > p:last-child { margin-bottom: 0; }
+.modal-content [role="tablist"] { display: flex; flex-wrap: wrap; gap: .45rem; margin-block: .2rem .8rem; border-bottom: 1px solid var(--border); }
+.modal-content [role="tab"] { min-height: 2.65rem; padding: .5rem .8rem; border: 1px solid transparent; border-bottom: 2px solid transparent; border-radius: .55rem .55rem 0 0; background: transparent; color: var(--muted); cursor: pointer; }
+.modal-content [role="tab"][aria-selected="true"] { border-color: var(--border); border-bottom-color: var(--accent); background: var(--surface-raised); color: var(--text); font-weight: 700; }
+.modal-content [role="tabpanel"] { min-width: 0; }
+.modal-content [hidden] { display: none !important; }
+.modal-content .stat-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-block: .65rem 1rem; }
+.modal-content .stat-card { position: relative; min-width: 0; min-height: 6rem; display: grid; align-content: center; justify-items: center; gap: .3rem; margin-top: .6rem; padding: .85rem .5rem .7rem; border: 1px solid var(--border); border-radius: .8rem; background: var(--surface-raised); text-align: center; }
+.modal-content .stat-icon { position: absolute; top: 0; left: 50%; width: 2rem; height: 2rem; display: grid; place-items: center; transform: translate(-50%, -55%); border: 4px solid var(--surface); border-radius: 50%; background: var(--surface-raised); color: var(--accent); }
+.modal-content .stat-icon .od-icon { width: 1.15rem; height: 1.15rem; }
+.modal-content .stat-card > span:not(.stat-icon) { color: var(--muted); font-size: .85rem; }
+.modal-content .stat-card strong { font-size: clamp(1.2rem, 6vw, 1.7rem); line-height: 1.15; }
+.modal-content .chart { min-height: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: end; gap: clamp(.2rem, 2vw, .65rem); margin-block: .75rem; }
+.modal-content .chart-column { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: .3rem; color: var(--muted); font-size: .8rem; }
+.modal-content .chart-track { width: min(78%, 2.3rem); height: clamp(5.5rem, 24vw, 8rem); display: flex; align-items: end; overflow: hidden; border-bottom: 1px solid var(--border-strong); border-radius: .3rem .3rem 0 0; background: color-mix(in srgb, var(--border) 26%, transparent); }
+.modal-content .chart-bar { display: block; width: 100%; background: var(--accent); border-radius: .25rem .25rem 0 0; }
+.modal-content .stat-card, .modal-content .chart-column, .modal-content .chart-track { text-align: center; }
+.modal-content .history-entry { margin-block: .55rem; overflow: hidden; border: 1px solid var(--border); border-radius: .75rem; background: var(--surface-raised); }
+.modal-content .history-entry > button { width: 100%; min-height: 2.75rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .45rem .7rem; padding: .7rem; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.modal-content .history-entry > button:hover { background: color-mix(in srgb, var(--accent) 7%, var(--surface-raised)); }
+.modal-content .history-entry > :not(button) { padding: .65rem; border-top: 1px solid var(--border); }
+.modal-content .history-board { width: min(100%, 17rem); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .2rem; margin-inline: auto; }
+.modal-content .history-board .tile { width: auto; min-width: 0; aspect-ratio: 1; display: grid; place-items: center; font-size: clamp(.75rem, 4vw, 1rem); }
+.modal :where(button, input, textarea, [tabindex]):focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.modal label:has(textarea) { display: block; }
+.modal textarea { display: block; width: 100%; min-height: 12rem; margin-top: .4rem; padding: .6rem; resize: vertical; border: 1px solid var(--border-strong); border-radius: .5rem; background: var(--surface-raised); color: var(--text); }
+@media (max-width: 360px) {
+  .backdrop { padding-inline: max(.5rem, env(safe-area-inset-left)) max(.5rem, env(safe-area-inset-right)); }
+  .modal { padding: .9rem; border-radius: .9rem; }
+  .modal-content .history-entry > button { gap: .35rem; padding: .6rem; }
+}
+@media (max-height: 36rem) {
+  .backdrop { place-items: start center; }
+  .modal { margin-block: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal *, .backdrop { scroll-behavior: auto; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

@@ -1,8 +1,13 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { allowedWords, vocabularyId } from '../src/word-data';
 import { createGame, submitGuess } from '../src/game';
 import { defaultPreferences } from '../src/preferences';
 
+async function openAction(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
 const key = 'parolecompetitive:session:v1';
 const date = '2026-11-08';
 const selection = (day: string, index = 0) => ({
@@ -22,9 +27,9 @@ test('unavailable selection creates no game, explicit retry acquires once and su
   expect(requests).toBe(1);
   const savedWhileUnavailable = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), key);
   expect(savedWhileUnavailable.games[date]).toBeUndefined();
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie0');
-  await page.getByRole('button', { name: 'Chiudi' }).last().click();
+  await page.getByRole('button', { name: 'Chiudi finestra', exact: true }).click();
   await page.getByRole('button', { name: 'Riprova', exact: true }).click();
   await expect.poll(() => page.evaluate(({ key, date }) => JSON.parse(localStorage.getItem(key)!).games[date]?.solution, { key, date })).toBe(allowedWords[0]);
   expect(requests).toBe(2);
@@ -51,7 +56,7 @@ test('previous unfinished games expire while today is unavailable', async ({ pag
   expect(games[date]).toBeUndefined();
   expect(games[ready.date].status).toBe('expired');
   expect(games[started.date].status).toBe('expired');
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(page.locator('#statistics .stat-card').nth(1)).toContainText('Sconfitte1');
 });
 
@@ -64,7 +69,7 @@ test('an incompatible vocabulary cannot start a game', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Ricarica pagina', exact: true })).toBeVisible();
   const saved = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!), key);
   expect(saved.games[date]).toBeUndefined();
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie0');
 });
 

@@ -2,11 +2,15 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { allowedWords } from '../src/word-data';
 
+async function openAction(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.getByRole('button', { name, exact: true }).click();
+}
 const key = 'parolecompetitive:session:v1';
 const day = '2026-03-10';
 
 async function openStatistics(page: Page) {
-  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await openAction(page, 'Statistiche');
   return page.locator('#statistics');
 }
 
@@ -55,7 +59,7 @@ test('unstarted and started expiries differ and remain counted once on reload', 
   await expect(stats).toContainText('Punteggio totale: 0');
   await expect.poll(() => page.evaluate(k => !!JSON.parse(localStorage.getItem(k)!).games['2026-03-11'], key)).toBe(true);
   const solution = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-11'].solution as string, key);
-  await page.getByRole('button', { name: 'Chiudi', exact: true }).click();
+  await page.getByRole('button', { name: 'Chiudi finestra', exact: true }).click();
   await page.locator('.board').click();
   await page.keyboard.type(allowedWords.find(word => word !== solution)!);
   await page.keyboard.press('Enter');

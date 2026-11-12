@@ -1,4 +1,11 @@
 import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+
+async function openAction(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.clock.runFor(200);
+  await page.getByRole('button', { name, exact: true }).click();
+}
 
 const storageKey = 'parolecompetitive:session:v1';
 
@@ -41,7 +48,7 @@ test('opening a modal stops a held key and semantic activation remains available
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
   await expect(page.locator('.board .tile').nth(1)).toHaveText('A');
-  await page.getByRole('button', { name: 'Come si gioca' }).dispatchEvent('click');
+  await openAction(page, 'Come si gioca');
   await page.clock.runFor(2000);
   await page.mouse.up();
   await expect(page.locator('.board .tile').nth(2)).toHaveText('');
