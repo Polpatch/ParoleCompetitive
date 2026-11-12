@@ -2,13 +2,17 @@
 
 ## 2026-11-12
 
+- Animate rejected submissions with a restartable damped row oscillation, while preserving input, accessible feedback and reduced-motion behavior.
 - Integrate the approved visual design into the production game, retaining real daily selections, local progress, rules, statistics and sharing.
 - Add a larger title with a short underline and an animated, contrasting capsule menu with minimal SVG icons and consistent focus return.
 - Restyle settings, guide, statistics and history dialogs while preserving their content, input locks and visible sharing footer.
-- Move the compact date below the board; place SVG Cancella on the left and Invio on the right of the last keyboard row.
+- Move the compact date below the board; place SVG Invio on the left and Cancella on the right of the last keyboard row.
+- Keep pressed-key feedback inset and clear it on touch release or cancellation while preserving visible keyboard focus.
+- Export a compact result card in the effective light/dark appearance with title, thin date, separated private grid and bare numeric score; keep the text fallback unchanged.
 - Present softer top-center toasts with a small upper-right close icon and a 200 ms exit fade, preserving active lifetime, hover/focus pauses and immediate reduced-motion dismissal.
 - Release pointer capture when cancelling an embedded-key hold so navigation remains usable.
 - Adapt the built-site browser checks to the menu, accessible icon controls, board/date positioning and toast lifecycle.
+- Investigate intermittent mobile reload zoom and add a repeated-reload scale check in Chromium mobile emulation against the production build. No iOS Safari device or simulator was available; the reported cause and behavior on iOS remain unverified, and browser/OS magnification is not reset.
 
 ## 2026-11-09
 

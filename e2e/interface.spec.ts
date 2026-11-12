@@ -150,7 +150,7 @@ for (const viewport of [{ width: 320, height: 812 }, { width: 1280, height: 800 
     expect(labels).toEqual([
       Array.from('QWERTYUIOP'),
       Array.from('ASDFGHJKL'),
-      ['Cancella', ...Array.from('ZXCVBNM'), 'Invio'],
+      ['Invio', ...Array.from('ZXCVBNM'), 'Cancella'],
     ]);
 
     await openAction(page, 'Impostazioni');

@@ -25,19 +25,37 @@ test('snapshot is gated, retains challenge identity and strips words without mut
   game.guesses[0].feedback[0] = 'green';
 });
 
-test('PNG drawing contains only summary text and a neutral first row, text uses identical privacy', async () => {
-  const drawn: { color: string; x: number; y: number }[] = [];
-  const labels: string[] = [];
-  const ctx = { fillStyle: '', font: '', fillRect(x: number, y: number) { drawn.push({ color: this.fillStyle, x, y }); }, fillText(text: string) { labels.push(text); } };
-  vi.stubGlobal('document', { createElement: () => ({ width: 0, height: 0, getContext: () => ctx, toBlob: (cb: (blob: Blob) => void) => cb(new Blob(['png'], { type: 'image/png' })) }) });
+test('PNG card uses the effective appearance, private grid and only title, date and score', async () => {
+  const drawn: { color: string; x: number; y: number; width: number; height: number }[] = [];
+  const labels: { text: string; font: string; color: string }[] = [];
+  const ctx = {
+    fillStyle: '', font: '', textAlign: '',
+    fillRect(x: number, y: number, width: number, height: number) { drawn.push({ color: this.fillStyle, x, y, width, height }); },
+    fillText(text: string) { labels.push({ text, font: this.font, color: this.fillStyle }); },
+  };
+  const documentElement = { dataset: { appearance: 'light' } };
+  vi.stubGlobal('document', { documentElement, createElement: () => ({ width: 0, height: 0, getContext: () => ctx, toBlob: (cb: (blob: Blob) => void) => cb(new Blob(['png'], { type: 'image/png' })) }) });
+  let deviceDark = false;
+  vi.stubGlobal('window', { matchMedia: () => ({ matches: deviceDark }) });
   const snapshot = snapshotResult(game, game.date, true)!;
-  const prepared = await prepareResult(snapshot);
-  assert.equal(prepared.file.type, 'image/png');
-  assert.doesNotMatch(labels.join(' '), /PIANO|ALBER|private/);
-  assert.equal(drawn.length, 31);
-  assert.deepEqual(drawn.slice(1, 6).map(cell => cell.color), Array(5).fill('#e5e7eb'));
-  assert.equal(new Set(drawn.slice(6, 11).map(cell => cell.color)).size, 1);
-  assert.equal(prepared.text.split('\n')[4], '⬜⬜⬜⬜⬜');
+  for (const [appearance, device, background, neutral] of [
+    ['light', true, '#fffefa', '#e5e7eb'],
+    ['dark', false, '#222724', '#46534b'],
+    ['system', false, '#fffefa', '#e5e7eb'],
+    ['system', true, '#222724', '#46534b'],
+  ] as const) {
+    documentElement.dataset.appearance = appearance;
+    deviceDark = device;
+    drawn.length = 0; labels.length = 0;
+    const prepared = await prepareResult(snapshot);
+    assert.equal(prepared.file.type, 'image/png');
+    assert.deepEqual(labels.map(label => label.text), ['Parole Competitive', game.date, '123']);
+    assert.equal(drawn.length, 31);
+    assert.equal(drawn[0].color, background);
+    assert.deepEqual(drawn.slice(1, 6).map(cell => cell.color), Array(5).fill(neutral));
+    assert.equal(new Set([drawn[6].color, neutral, '#ca8a04', '#6b7280']).size, 4);
+    assert.equal(prepared.text.split('\n')[4], '⬜⬜⬜⬜⬜');
+  }
   assert.equal(resultText(snapshot, false).split('\n')[4], '🟩🟨⬛🟩⬛');
   drawn.length = 0;
   await prepareResult(snapshot, false);

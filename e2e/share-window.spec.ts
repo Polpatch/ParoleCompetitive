@@ -23,7 +23,8 @@ async function win(page: Page, withEarlierGuess = false): Promise<void> {
   await expect(page.getByRole('dialog', { name: 'Statistiche' }).getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
 }
 
-test('native share receives the private PNG directly from the gesture', async ({ page }) => {
+for (const scheme of ['light', 'dark'] as const) test(`native share receives the private PNG in system ${scheme} appearance`, async ({ page }) => {
+  await page.emulateMedia({ colorScheme: scheme });
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
     Object.defineProperty(navigator, 'share', { configurable: true, value: (data: ShareData) => {
@@ -37,7 +38,7 @@ test('native share receives the private PNG directly from the gesture', async ({
   await expect(page.locator('main [data-action="share"]')).toHaveCount(0);
   await dialog.getByRole('button', { name: 'Condividi risultato' }).click();
   await expect(dialog.locator('.toast')).toBeVisible();
-  const exported = await page.evaluate(async () => {
+  const exported = await page.evaluate(async dark => {
     const file = (window as Window & { sharedFile?: File }).sharedFile;
     if (!file) throw new Error('Native share did not receive a file');
     const image = await createImageBitmap(file);
@@ -46,13 +47,14 @@ test('native share receives the private PNG directly from the gesture', async ({
     const ctx = canvas.getContext('2d')!;
     ctx.drawImage(image, 0, 0);
     const colors = Array.from({ length: 6 }, (_, y) => Array.from({ length: 5 }, (_, x) => {
-      const pixels = ctx.getImageData(45 + x * 82, 220 + y * 82, 70, 70).data;
-      const expected = y === 1 ? [22, 163, 74, 255] : [229, 231, 235, 255];
+      const pixels = ctx.getImageData(64 + x * 76, 155 + y * 76, 68, 68).data;
+      const expected = y === 1 ? [22, 163, 74, 255] : dark ? [70, 83, 75, 255] : [229, 231, 235, 255];
       return Array.from(pixels).every((value, index) => value === expected[index % 4]);
     }));
-    return { type: file.type, width: image.width, height: image.height, colors, active: (window as Window & { shareActivation?: boolean }).shareActivation };
-  });
-  expect(exported).toEqual({ type: 'image/png', width: 500, height: 750, colors: Array.from({ length: 6 }, () => Array(5).fill(true)), active: true });
+    const background = Array.from(ctx.getImageData(0, 0, 1, 1).data);
+    return { type: file.type, width: image.width, height: image.height, colors, background, active: (window as Window & { shareActivation?: boolean }).shareActivation };
+  }, scheme === 'dark');
+  expect(exported).toEqual({ type: 'image/png', width: 500, height: 750, colors: Array.from({ length: 6 }, () => Array(5).fill(true)), background: scheme === 'dark' ? [34, 39, 36, 255] : [255, 254, 250, 255], active: true });
 });
 
 test('denied clipboard leaves selectable private text above the fixed footer', async ({ page }) => {

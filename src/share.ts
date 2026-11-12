@@ -10,9 +10,10 @@ export interface ResultSnapshot {
 }
 
 type Cell = Feedback | 'neutral';
-const colors: Record<Cell, string> = {
-  neutral: '#e5e7eb', gray: '#6b7280', yellow: '#ca8a04', green: '#16a34a',
-};
+const palettes = {
+  light: { background: '#fffefa', text: '#162b24', muted: '#63766e', neutral: '#e5e7eb', gray: '#6b7280', yellow: '#ca8a04', green: '#16a34a' },
+  dark: { background: '#222724', text: '#edf2ee', muted: '#b0bdb5', neutral: '#46534b', gray: '#6b7280', yellow: '#ca8a04', green: '#16a34a' },
+} satisfies Record<string, Record<Cell | 'background' | 'text' | 'muted', string>>;
 const symbols: Record<Cell, string> = { neutral: '⬜', gray: '⬛', yellow: '🟨', green: '🟩' };
 
 // Snapshot the challenge identity and public result data after the reveal.
@@ -41,20 +42,30 @@ export interface PreparedResult { readonly date: string; readonly scheduleId: st
 
 // Call before the share button gesture: canvas encoding is asynchronous.
 export async function prepareResult(result: ResultSnapshot, spoilerFree = true): Promise<PreparedResult> {
+  const appearance = document.documentElement.dataset.appearance;
+  const dark = appearance === 'dark' || (appearance === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const colors = palettes[dark ? 'dark' : 'light'];
   const canvas = document.createElement('canvas');
   canvas.width = 500;
   canvas.height = 750;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Impossibile preparare l’immagine del risultato.');
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = colors.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#111827';
-  ctx.font = 'bold 30px sans-serif';
-  summary(result).forEach((line, index) => ctx.fillText(line, 45, 55 + index * 45));
+  ctx.textAlign = 'center';
+  ctx.fillStyle = colors.text;
+  ctx.font = '700 30px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillText('Parole Competitive', 250, 72);
+  ctx.fillStyle = colors.muted;
+  ctx.font = '300 17px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillText(result.date, 250, 105);
   grid(result, spoilerFree).forEach((row, y) => row.forEach((cell, x) => {
     ctx.fillStyle = colors[cell];
-    ctx.fillRect(45 + x * 82, 220 + y * 82, 70, 70);
+    ctx.fillRect(64 + x * 76, 155 + y * 76, 68, 68);
   }));
+  ctx.fillStyle = colors.text;
+  ctx.font = '700 36px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillText(String(result.score), 250, 680);
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Impossibile preparare l’immagine del risultato.')), 'image/png'));
   return { date: result.date, scheduleId: result.scheduleId, file: new File([blob], 'risultato.png', { type: 'image/png' }), text: resultText(result, spoilerFree) };
 }

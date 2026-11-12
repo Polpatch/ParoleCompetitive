@@ -41,6 +41,7 @@ let revealRow = -1;
 let beforeReveal: Game | null = null;
 let revealStarted = 0;
 let revealTimers: number[] = [];
+let rejectionStarted: number | null = null;
 let selectionState: 'loading' | 'unavailable' | 'incompatible' | 'available' = 'loading';
 const selectionSource = createSelectionSource();
 let acquisition: { date: string; promise: Promise<void> } | undefined;
@@ -296,19 +297,21 @@ function render(): void {
   const historicalPublic = Object.fromEntries(Object.entries(session.publicGames ?? {}).map(([date, saved]) => [`${date}:public`, saved]));
   const stats = deriveStatistics({ ...historicalPublic, ...(beforeReveal && revealing ? { ...session.games, [beforeReveal.date]: beforeReveal } : session.games) });
   const fixed = game ? fixedLetters(game) : [];
+  const rejectionElapsed = rejectionStarted === null ? 600 : performance.now() - rejectionStarted;
   const tiles = Array.from({ length: 6 }, (_, row) => Array.from({ length: 5 }, (_, col) => {
     const guess = game?.guesses[row];
     const activeDraft = !!game && !revealing && !terminal && row === game.guesses.length;
     const letter = guess?.word[col] ?? (activeDraft ? game?.draft[col]?.trim() : '') ?? '';
     const isFixed = activeDraft && !!fixed[col];
     const isRevealing = revealing && row === revealRow;
+    const isRejected = activeDraft && rejectionElapsed < 600;
     const elapsed = isRevealing ? performance.now() - revealStarted : 0;
     const feedback = isRevealing && elapsed < 500 + col * 300 ? undefined : guess?.feedback[col];
     const description = isFixed ? `${letter}: posizione ${col + 1}, corretta e fissa` : feedback ? `${letter}: ${feedback === 'green' ? 'posizione corretta' : feedback === 'yellow' ? 'presente, posizione diversa' : 'assente'}` : letter || 'vuota';
-    const animation = isRevealing ? `style="animation-delay: ${col * 300 - elapsed}ms"` : '';
-    return `<div class="tile ${isFixed ? 'green' : feedback ?? ''} ${isRevealing ? 'revealing' : ''}" ${animation} aria-label="${description}" role="img">${letter}</div>`;
+    const animation = isRevealing ? `style="animation-delay: ${col * 300 - elapsed}ms"` : isRejected ? `style="animation-delay: ${-rejectionElapsed}ms"` : '';
+    return `<div class="tile ${isFixed ? 'green' : feedback ?? ''} ${isRevealing ? 'revealing' : ''} ${isRejected ? 'rejected' : ''}" ${animation} aria-label="${description}" role="img">${letter}</div>`;
   }).join('')).join('');
-  const keyboard = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'].map((row, index) => `<div class="keyboard-row">${index === 2 ? `<button type="button" data-action="delete" aria-label="Cancella" ${finished ? 'disabled' : ''}>${icons.delete}</button>` : ''}${row.split('').map(letter => `<button type="button" data-letter="${letter}" class="${keys[letter] ?? ''}" ${finished || keys[letter] === 'gray' ? 'disabled' : ''}>${letter}</button>`).join('')}${index === 2 ? `<button type="button" data-action="submit" aria-label="Invio" ${finished ? 'disabled' : ''}>${icons.enter}</button>` : ''}</div>`).join('');
+  const keyboard = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'].map((row, index) => `<div class="keyboard-row">${index === 2 ? `<button type="button" data-action="submit" aria-label="Invio" ${finished ? 'disabled' : ''}>${icons.enter}</button>` : ''}${row.split('').map(letter => `<button type="button" data-letter="${letter}" class="${keys[letter] ?? ''}" ${finished || keys[letter] === 'gray' ? 'disabled' : ''}>${letter}</button>`).join('')}${index === 2 ? `<button type="button" data-action="delete" aria-label="Cancella" ${finished ? 'disabled' : ''}>${icons.delete}</button>` : ''}</div>`).join('');
   const resultVisible = !!game && !revealing && game.date === romeDate() && (game.status === 'won' || game.status === 'lost');
   const maximum = Math.max(...stats.distribution);
   const bars = stats.distribution.map((count, index) => `<div class="chart-column"><span>${count}</span><div class="chart-track"><div class="chart-bar" style="height:${maximum ? count / maximum * 100 : 0}%"></div></div><span>${index + 1}</span></div>`).join('');
@@ -392,6 +395,7 @@ async function perform(action: (current: Session, currentGame: Game | null) => v
         catch { storageAvailable = false; }
       }
       if (game?.date !== previous?.date || game?.scheduleId !== previous?.scheduleId) {
+        rejectionStarted = null;
         invalidateInput();
         if (previous) clearToast();
         shareEpoch++;
@@ -410,6 +414,7 @@ async function perform(action: (current: Session, currentGame: Game | null) => v
         message = replacementMessage + (!game && romeDate(now) === ACTIVATION_DATE ? ' La nuova partita attende la selezione pubblicata.' : '');
       }
       if (game && current && game.guesses.length > previousCount) {
+        rejectionStarted = null;
         invalidateInput();
         beforeReveal = current;
         revealRow = game.guesses.length - 1;
@@ -486,7 +491,10 @@ function input(key: string): void {
         return;
       }
       message = '';
-      if (key === 'Enter') message = playGuess(next, current, Date.now()) ?? '';
+      if (key === 'Enter') {
+        message = playGuess(next, current, Date.now()) ?? '';
+        if (message) rejectionStarted = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? null : performance.now();
+      }
       else if (key === 'Backspace') next.games[current.date] = editDraft(current, key);
       else if (/^[a-z]$/i.test(key)) {
         if (keyboardKnowledge(current.guesses)[key.toUpperCase()] === 'gray') message = 'Lettera già esclusa';
