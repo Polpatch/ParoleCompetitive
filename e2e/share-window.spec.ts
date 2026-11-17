@@ -47,14 +47,58 @@ for (const scheme of ['light', 'dark'] as const) test(`native share receives the
     const ctx = canvas.getContext('2d')!;
     ctx.drawImage(image, 0, 0);
     const colors = Array.from({ length: 6 }, (_, y) => Array.from({ length: 5 }, (_, x) => {
-      const pixels = ctx.getImageData(64 + x * 76, 155 + y * 76, 68, 68).data;
-      const expected = y === 1 ? [22, 163, 74, 255] : dark ? [70, 83, 75, 255] : [229, 231, 235, 255];
-      return Array.from(pixels).every((value, index) => value === expected[index % 4]);
+      const pixels = ctx.getImageData(64 + x * 44, 88 + y * 44, 40, 40).data;
+      const expected = y === 1 ? [35, 117, 77, 255] : dark ? [34, 39, 36, 255] : [255, 254, 250, 255];
+      const border = dark ? [70, 83, 75, 255] : [203, 215, 207, 255];
+      for (let index = 0; index < pixels.length; index += 4) {
+        let fillMatches = true, borderMatches = true;
+        for (let channel = 0; channel < 4; channel++) {
+          fillMatches &&= pixels[index + channel] === expected[channel];
+          borderMatches &&= pixels[index + channel] === border[channel];
+        }
+        if (!fillMatches && (y === 1 || !borderMatches)) return false;
+      }
+      return true;
     }));
     const background = Array.from(ctx.getImageData(0, 0, 1, 1).data);
     return { type: file.type, width: image.width, height: image.height, colors, background, active: (window as Window & { shareActivation?: boolean }).shareActivation };
   }, scheme === 'dark');
-  expect(exported).toEqual({ type: 'image/png', width: 500, height: 750, colors: Array.from({ length: 6 }, () => Array(5).fill(true)), background: scheme === 'dark' ? [34, 39, 36, 255] : [255, 254, 250, 255], active: true });
+  expect(exported).toEqual({ type: 'image/png', width: 344, height: 424, colors: Array.from({ length: 6 }, () => Array(5).fill(true)), background: scheme === 'dark' ? [24, 27, 25, 255] : [245, 247, 242, 255], active: true });
+});
+
+test('spoiler-free first-guess win keeps only the permitted green feedback in its PNG', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: (data: ShareData) => {
+      (window as Window & { sharedFile?: File }).sharedFile = data.files![0];
+      return Promise.resolve();
+    } });
+  });
+  await win(page);
+  const dialog = page.getByRole('dialog', { name: 'Statistiche' });
+  await dialog.getByRole('button', { name: 'Chiudi finestra' }).click();
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.getByRole('button', { name: 'Impostazioni', exact: true }).click();
+  const settings = page.getByRole('dialog', { name: 'Impostazioni' });
+  await settings.getByRole('checkbox', { name: 'Condivisione spoiler-free' }).uncheck();
+  await settings.getByRole('checkbox', { name: 'Condivisione spoiler-free' }).check();
+  await settings.getByRole('button', { name: 'Chiudi finestra' }).click();
+  await page.getByRole('button', { name: 'Apri menu' }).click();
+  await page.getByRole('button', { name: 'Statistiche', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Condividi risultato' }).click();
+  const firstRow = await page.evaluate(async () => {
+    const file = (window as Window & { sharedFile?: File }).sharedFile!;
+    const image = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(image, 0, 0);
+    return Array.from({ length: 5 }, (_, x) => Array.from(context.getImageData(64 + 44 * x, 88, 40, 40).data)
+      .every((value, index) => value === [35, 117, 77, 255][index % 4]));
+  });
+  expect(firstRow).toEqual(Array(5).fill(true));
 });
 
 test('denied clipboard leaves selectable private text above the fixed footer', async ({ page }) => {
@@ -65,11 +109,12 @@ test('denied clipboard leaves selectable private text above the fixed footer', a
   });
   await win(page);
   const dialog = page.getByRole('dialog', { name: 'Statistiche' });
+  await dialog.getByRole('radio', { name: 'Testo puro' }).check();
   await dialog.getByRole('button', { name: 'Condividi risultato' }).click();
   await expect(dialog).toContainText('Copia il testo qui sotto');
   const text = dialog.getByLabel('Testo da copiare');
   const value = await text.inputValue();
-  expect(value.split('\n')[4]).toBe('⬜⬜⬜⬜⬜');
+  expect(value.split('\n')[4]).toBe('🟩🟩🟩🟩🟩');
   const solution = await page.evaluate(k => {
     const games = JSON.parse(localStorage.getItem(k)!).games;
     return games[Object.keys(games)[0]].solution as string;
@@ -89,3 +134,4 @@ test('denied clipboard leaves selectable private text above the fixed footer', a
   await page.keyboard.press('ControlOrMeta+A');
   expect(await text.evaluate(el => (el as HTMLTextAreaElement).selectionEnd - (el as HTMLTextAreaElement).selectionStart)).toBe(value.length);
 });
+

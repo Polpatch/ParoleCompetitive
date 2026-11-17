@@ -4,7 +4,7 @@ import { editDraft, fixedLetters, keyboardKnowledge, type Game } from './game';
 import { canSelectDifficulty, defaultPreferences, type Appearance, type Difficulty } from './preferences';
 import { changeAutocomplete, changeDifficulty, changeSpoilerFree, playGuess, readSession, reconcile, reconcileCutover, SESSION_KEY, writeSession, type Session } from './session';
 import { deriveStatistics } from './statistics';
-import { prepareResult, sharePrepared, snapshotResult, type PreparedResult } from './share';
+import { prepareResult, resultText, sharePrepared, shareText, snapshotResult, type PreparedResult } from './share';
 import { createSelectionSource } from './selection-source';
 
 const root = document.querySelector<HTMLElement>('#app');
@@ -31,6 +31,8 @@ let menuOpen = false;
 let statisticsTab: 'summary' | 'history' = 'summary';
 const expandedHistory = new Set<string>();
 let prepared: PreparedResult | null = null;
+let preparedImageURL = '';
+let shareFormat: 'image' | 'text' = 'image';
 let prepareFailed = false;
 let prepareVersion = 0;
 let shareEpoch = 0;
@@ -94,10 +96,12 @@ function updateViewportLayout(): void {
   const padding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
   const controlHeight = app.querySelector<HTMLElement>('#menu-trigger')?.offsetHeight ?? 0;
   document.body.classList.toggle('document-scroll', keyboard.offsetHeight + padding + controlHeight > height);
+  placeToast();
 }
 const layoutObserver = new ResizeObserver(updateViewportLayout);
 window.addEventListener('resize', updateViewportLayout);
 window.visualViewport?.addEventListener('resize', updateViewportLayout);
+document.addEventListener('scroll', placeToast, true);
 
 function keySelector(key: string): string {
   return key === 'Enter' ? '[data-action="submit"]' : key === 'Backspace' ? '[data-action="delete"]' : `[data-letter="${key}"]`;
@@ -118,6 +122,10 @@ let toastElement: HTMLElement | null = null;
 function placeToast(): void {
   if (!toastElement) return;
   const target = app.querySelector('.modal-header') ?? document.body;
+  if (target === document.body) {
+    const header = app.querySelector('.topbar');
+    if (header) toastElement.style.setProperty('--toast-top', `${Math.max(0, header.getBoundingClientRect().bottom) + 8}px`);
+  }
   if (toastElement.parentElement !== target) target.append(toastElement);
 }
 
@@ -277,8 +285,8 @@ function finishReveal(): void {
   if (completed) message = outcomeMessage(revealedGame);
   else live.textContent = 'Tentativo inviato';
   if (completed) { resetStatisticsView(); panel = 'statistics'; }
-  render();
   refreshShare();
+  render();
 }
 
 function render(): void {
@@ -313,6 +321,10 @@ function render(): void {
   }).join('')).join('');
   const keyboard = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'].map((row, index) => `<div class="keyboard-row">${index === 2 ? `<button type="button" data-action="submit" aria-label="Invio" ${finished ? 'disabled' : ''}>${icons.enter}</button>` : ''}${row.split('').map(letter => `<button type="button" data-letter="${letter}" class="${keys[letter] ?? ''}" ${finished || keys[letter] === 'gray' ? 'disabled' : ''}>${letter}</button>`).join('')}${index === 2 ? `<button type="button" data-action="delete" aria-label="Cancella" ${finished ? 'disabled' : ''}>${icons.delete}</button>` : ''}</div>`).join('');
   const resultVisible = !!game && !revealing && game.date === romeDate() && (game.status === 'won' || game.status === 'lost');
+  const shareVisible = panel === 'statistics' && statisticsTab === 'summary' && resultVisible;
+  const imageReady = !!prepared && prepared.date === game?.date && prepared.scheduleId === game?.scheduleId;
+  const sharePreview = shareVisible ? `${shareFormat === 'image' ? imageReady && preparedImageURL ? `<figure class="share-preview"><img src="${preparedImageURL}" width="344" height="424" alt="Anteprima del risultato senza lettere"></figure>` : !prepareFailed ? '<p role="status">Preparo il risultato…</p>' : '' : ''}${manualText ? '<p>Copia il testo qui sotto</p><label>Testo da copiare<textarea id="share-text" readonly></textarea></label>' : ''}` : '';
+  const shareControls = shareVisible ? `<footer class="share-footer"><fieldset class="share-format"><legend class="visually-hidden">Formato di condivisione</legend><label><input type="radio" name="share-format" value="image" ${shareFormat === 'image' ? 'checked' : ''}> Immagine</label><label><input type="radio" name="share-format" value="text" ${shareFormat === 'text' ? 'checked' : ''}> Testo puro</label></fieldset><div class="share-actions"><button type="button" data-action="share" ${shareFormat === 'text' || imageReady || prepareFailed ? '' : 'disabled'}>Condividi risultato</button>${shareFormat === 'image' && imageReady && preparedImageURL ? `<a class="share-download" href="${preparedImageURL}" download="parolecompetitive-${prepared!.date}.png">Scarica PNG</a>` : ''}</div><p class="share-hint">${shareFormat === 'image' ? 'Il link accompagna l’immagine; alcune app possono ometterlo.' : 'Condividi o copia il risultato con il link dell’app.'}</p></footer>` : '';
   const maximum = Math.max(...stats.distribution);
   const bars = stats.distribution.map((count, index) => `<div class="chart-column"><span>${count}</span><div class="chart-track"><div class="chart-bar" style="height:${maximum ? count / maximum * 100 : 0}%"></div></div><span>${index + 1}</span></div>`).join('');
   if (toastElement && app.contains(toastElement)) document.body.append(toastElement);
@@ -335,17 +347,17 @@ function render(): void {
         <label><input type="radio" name="appearance" value="system" ${session.preferences.appearance === 'system' ? 'checked' : ''}> Sistema</label>
         <label><input type="radio" name="appearance" value="light" ${session.preferences.appearance === 'light' ? 'checked' : ''}> Chiaro</label>
         <label><input type="radio" name="appearance" value="dark" ${session.preferences.appearance === 'dark' ? 'checked' : ''}> Scuro</label>
-      </fieldset><label><input type="checkbox" id="autocomplete" aria-describedby="autocomplete-explanation autocomplete-state" ${session.preferences.autocomplete ? 'checked' : ''} ${game?.status === 'playing' || revealing ? 'disabled' : ''}> Autocomplete</label><p id="autocomplete-explanation">Dopo la rivelazione completa, tutte le lettere verdi già scoperte sono inserite nel tentativo successivo. Sono fisse: non si possono cancellare né sovrascrivere; digitazione e cancella le saltano e compilano i vuoti in ordine. Il fattore ×0,98 si applica dal primo tentativo accettato, anche senza lettere precompilate, e si moltiplica per l'eventuale bonus difficile ×1,10 prima di un unico arrotondamento finale.</p><p id="autocomplete-state">${revealing ? 'Attendi la fine della rivelazione per modificare la scelta.' : game?.status === 'playing' ? 'La scelta è bloccata durante la partita iniziata: non puoi cambiare la modalità né la preferenza futura.' : terminal ? 'Ora la scelta riguarda solo le partite future: non cambia la modalità, il risultato o il punteggio della partita conclusa.' : 'Puoi cambiare la scelta fino al primo tentativo accettato.'}</p><label><input type="checkbox" id="spoiler" ${session.preferences.spoilerFree ? 'checked' : ''}> Condivisione spoiler-free</label><p>Nasconde il feedback del primo tentativo nelle condivisioni successive; non modifica punteggi o risultati.</p><p>I dati restano su questo dispositivo. Cancellare i dati del sito può eliminare i progressi.</p>` : ''}
+      </fieldset><label><input type="checkbox" id="autocomplete" aria-describedby="autocomplete-explanation autocomplete-state" ${session.preferences.autocomplete ? 'checked' : ''} ${game?.status === 'playing' || revealing ? 'disabled' : ''}> Autocomplete</label><p id="autocomplete-explanation">Dopo la rivelazione completa, tutte le lettere verdi già scoperte sono inserite nel tentativo successivo. Sono fisse: non si possono cancellare né sovrascrivere; digitazione e cancella le saltano e compilano i vuoti in ordine. Il fattore ×0,98 si applica dal primo tentativo accettato, anche senza lettere precompilate, e si moltiplica per l'eventuale bonus difficile ×1,10 prima di un unico arrotondamento finale.</p><p id="autocomplete-state">${revealing ? 'Attendi la fine della rivelazione per modificare la scelta.' : game?.status === 'playing' ? 'La scelta è bloccata durante la partita iniziata: non puoi cambiare la modalità né la preferenza futura.' : terminal ? 'Ora la scelta riguarda solo le partite future: non cambia la modalità, il risultato o il punteggio della partita conclusa.' : 'Puoi cambiare la scelta fino al primo tentativo accettato.'}</p><label><input type="checkbox" id="spoiler" ${session.preferences.spoilerFree ? 'checked' : ''}> Condivisione spoiler-free</label><p>Nasconde il feedback del primo tentativo, salvo vittoria al primo colpo. Non mostra mai le lettere e non modifica punteggi o risultati.</p><p>I dati restano su questo dispositivo. Cancellare i dati del sito può eliminare i progressi.</p>` : ''}
     ${panel === 'guide' ? `<p>Hai sei tentativi di cinque lettere. Il verde indica la posizione corretta, il giallo una lettera presente in un'altra posizione e il grigio una lettera assente. Con lettere doppie le posizioni corrette sono valutate prima, poi le occorrenze rimanenti da sinistra a destra.</p><p>La parola cambia a mezzanotte in Italia (Europe/Rome). Il tempo parte dal primo tentativo valido e continua anche a pagina chiusa. Anche in standard le lettere sicuramente assenti sono bloccate; difficile aggiunge vincoli di posizione e quantità e il bonus del 10%, perso con il downgrade. Prima del primo tentativo e dopo la partita puoi scegliere liberamente; durante la partita non puoi passare da standard a difficile.</p><p>Una sfida già acquisita resta giocabile offline fino a mezzanotte italiana; l'avvio offline senza una selezione salvata e le sfide future non pubblicate non sono garantiti. Versioni precedenti conservate nella cache possono usare il vecchio calendario e non garantiscono la stessa sfida.</p>` : ''}
-    ${panel === 'statistics' ? `<div role="tablist" aria-label="Viste statistiche"><button type="button" role="tab" id="tab-summary" data-action="tab-summary" aria-selected="${statisticsTab === 'summary'}" aria-controls="statistics" tabindex="${statisticsTab === 'summary' ? 0 : -1}">Statistiche</button><button type="button" role="tab" id="tab-history" data-action="tab-history" aria-selected="${statisticsTab === 'history'}" aria-controls="history" tabindex="${statisticsTab === 'history' ? 0 : -1}">Storico</button></div>${statisticsTab === 'summary' ? `<div id="statistics" role="tabpanel" aria-labelledby="tab-summary"><div class="stat-cards"><div class="stat-card"><span class="stat-icon" aria-hidden="true">${icons.trophy}</span><span>Vittorie</span><strong>${stats.wins}</strong></div><div class="stat-card"><span class="stat-icon" aria-hidden="true">${icons.loss}</span><span>Sconfitte</span><strong>${stats.losses}</strong></div></div><p>Punteggio totale: ${stats.totalScore}</p><h3>Vittorie per tentativi</h3><div class="chart" role="img" aria-label="Vittorie per tentativi, scala da zero a ${maximum}. ${stats.distribution.map((n, i) => `${i + 1}: ${n}`).join(', ')}">${bars}</div>${maximum === 0 ? '<p>Nessuna vittoria ancora.</p>' : ''}${resultVisible && game ? `<p>${outcomeMessage(game)}</p><p>Durata: ${formatDuration(game)}</p>` : ''}<p>I dati restano su questo dispositivo. Cancellare i dati del sito può eliminare i progressi.</p>${resultVisible && !prepared && !prepareFailed ? '<p role="status">Preparo il risultato…</p>' : ''}${manualText ? '<p>Copia il testo qui sotto</p><label>Testo da copiare<textarea id="share-text" readonly></textarea></label>' : ''}</div>` : `<div id="history" role="tabpanel" aria-labelledby="tab-history">${historyMarkup()}</div>`}` : ''}
+    ${panel === 'statistics' ? `<div role="tablist" aria-label="Viste statistiche"><button type="button" role="tab" id="tab-summary" data-action="tab-summary" aria-selected="${statisticsTab === 'summary'}" aria-controls="statistics" tabindex="${statisticsTab === 'summary' ? 0 : -1}">Statistiche</button><button type="button" role="tab" id="tab-history" data-action="tab-history" aria-selected="${statisticsTab === 'history'}" aria-controls="history" tabindex="${statisticsTab === 'history' ? 0 : -1}">Storico</button></div>${statisticsTab === 'summary' ? `<div id="statistics" role="tabpanel" aria-labelledby="tab-summary">${sharePreview}<div class="stat-cards"><div class="stat-card"><span class="stat-icon" aria-hidden="true">${icons.trophy}</span><span>Vittorie</span><strong>${stats.wins}</strong></div><div class="stat-card"><span class="stat-icon" aria-hidden="true">${icons.loss}</span><span>Sconfitte</span><strong>${stats.losses}</strong></div></div><p>Punteggio totale: ${stats.totalScore}</p><h3>Vittorie per tentativi</h3><div class="chart" role="img" aria-label="Vittorie per tentativi, scala da zero a ${maximum}. ${stats.distribution.map((n, i) => `${i + 1}: ${n}`).join(', ')}">${bars}</div>${maximum === 0 ? '<p>Nessuna vittoria ancora.</p>' : ''}${resultVisible && game ? `<p>${outcomeMessage(game)}</p><p>Durata: ${formatDuration(game)}</p>` : ''}<p>I dati restano su questo dispositivo. Cancellare i dati del sito può eliminare i progressi.</p></div>` : `<div id="history" role="tabpanel" aria-labelledby="tab-history">${historyMarkup()}</div>`}` : ''}
     ${panel === 'statistics' ? statisticsTab === 'summary' ? '<div id="history" role="tabpanel" aria-labelledby="tab-history" hidden></div>' : '<div id="statistics" role="tabpanel" aria-labelledby="tab-summary" hidden></div>' : ''}
-    </div>${panel === 'statistics' && statisticsTab === 'summary' && resultVisible ? `<footer><button type="button" data-action="share" ${prepared || prepareFailed ? '' : 'disabled'}>Condividi risultato</button></footer>` : ''}</section></div>` : ''}`;
+    </div>${shareControls}</section></div>` : ''}`;
   if (held) {
     const button = app.querySelector<HTMLButtonElement>(`.keyboard ${keySelector(held.key)}`);
     if (!button || button.disabled || panel || menuOpen) stopHold();
     else button.classList.add('held');
   }
-  placeToast();
+  updateViewportLayout();
   const textarea = app.querySelector<HTMLTextAreaElement>('textarea');
   if (textarea) textarea.value = manualText;
   document.body.classList.toggle('modal-open', !!panel);
@@ -364,17 +376,24 @@ function render(): void {
   layoutObserver.disconnect();
   const keyboardElement = app.querySelector<HTMLElement>('.keyboard');
   if (keyboardElement) layoutObserver.observe(keyboardElement);
-  updateViewportLayout();
 }
 
 function refreshShare(): void {
   const version = ++prepareVersion;
+  if (preparedImageURL) URL.revokeObjectURL(preparedImageURL);
+  preparedImageURL = '';
   prepared = null;
   prepareFailed = false;
-  const snapshot = game ? snapshotResult(game, romeDate(), !revealing) : null;
-  if (snapshot) void prepareResult(snapshot, session.preferences.spoilerFree).then(result => {
-    if (version === prepareVersion) { prepared = result; render(); }
-  }).catch(() => { if (version === prepareVersion) { prepareFailed = true; if (panel === 'statistics' && statisticsTab === 'summary') message = 'Preparazione non riuscita. Riprova'; render(); } });
+  const snapshot = shareFormat === 'image' && game ? snapshotResult(game, romeDate(), !revealing) : null;
+  if (snapshot) {
+    document.documentElement.dataset.appearance = session.preferences.appearance;
+    void prepareResult(snapshot, session.preferences.spoilerFree).then(result => {
+      if (version !== prepareVersion) return;
+      preparedImageURL = URL.createObjectURL(result.file);
+      prepared = result;
+      render();
+    }).catch(() => { if (version === prepareVersion) { prepareFailed = true; if (panel === 'statistics' && statisticsTab === 'summary') message = 'Preparazione non riuscita. Riprova'; render(); } });
+  }
 }
 
 async function perform(action: (current: Session, currentGame: Game | null) => void, selection?: DailySelection): Promise<void> {
@@ -436,8 +455,8 @@ async function perform(action: (current: Session, currentGame: Game | null) => v
       storageAvailable = false;
       message = '';
     }
-    render();
     refreshShare();
+    render();
   };
   if (navigator.locks) {
     try { await navigator.locks.request('parolecompetitive:session', run); }
@@ -469,6 +488,9 @@ function acquireToday(): void {
 async function initialize(): Promise<void> {
   session = { preferences: defaultPreferences(), games: {} };
   await perform(() => {});
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (session.preferences.appearance === 'system') { refreshShare(); render(); }
+  });
   window.addEventListener('storage', event => { if (event.key === SESSION_KEY) enqueue(() => {}); });
   observeDailyWord({ onDay: () => {
     queue = queue.then(async () => {
@@ -580,9 +602,14 @@ app.addEventListener('click', event => {
   if (button.dataset.letter) input(button.dataset.letter);
   else if (button.dataset.action === 'delete') input('Backspace');
   else if (button.dataset.action === 'submit') input('Enter');
-  else if (button.dataset.action === 'share' && prepared) {
+  else if (button.dataset.action === 'share') {
+    const snapshot = shareFormat === 'text' && game ? snapshotResult(game, romeDate(), !revealing) : null;
+    const resultToShare = shareFormat === 'text' ? snapshot && { date: snapshot.date, scheduleId: snapshot.scheduleId, text: resultText(snapshot, session.preferences.spoilerFree) } : prepared;
+    if (!resultToShare) {
+      if (shareFormat === 'image' && prepareFailed) { refreshShare(); render(); }
+      return;
+    }
     const epoch = shareEpoch;
-    const resultToShare = prepared;
     if (!game || resultToShare.date !== romeDate() || resultToShare.date !== game.date || resultToShare.scheduleId !== game.scheduleId) {
       enqueue(() => {});
       return;
@@ -600,17 +627,27 @@ app.addEventListener('click', event => {
         return;
       }
     }
-    void sharePrepared(resultToShare).then(result => {
+    const operation = 'file' in resultToShare ? sharePrepared(resultToShare) : shareText(resultToShare.text);
+    void operation.then(result => {
       if (epoch !== shareEpoch || !game || game.date !== resultToShare.date || game.scheduleId !== resultToShare.scheduleId || game.date !== romeDate()) return;
       if (result.kind === 'cancelled') return;
       manualText = result.kind === 'manual' ? result.text : '';
       if (result.kind !== 'manual' && panel === 'statistics' && statisticsTab === 'summary') message = result.message;
       render();
     });
-  } else if (button.dataset.action === 'share' && prepareFailed) { refreshShare(); render(); }
+  }
 });
 app.addEventListener('change', event => {
   const target = event.target as HTMLInputElement;
+  if (target.name === 'share-format') {
+    shareFormat = target.value as 'image' | 'text';
+    shareEpoch++;
+    manualText = '';
+    clearToast();
+    refreshShare();
+    render();
+    return;
+  }
   if (target.name === 'difficulty') enqueue((next, current) => { if (!current) next.preferences.difficulty = target.value as Difficulty; else if (!changeDifficulty(next, current, target.value as Difficulty)) message = 'Non puoi attivare la modalità difficile dopo il primo tentativo.'; });
   if (target.name === 'appearance') enqueue(next => { next.preferences.appearance = target.value as Appearance; });
   if (target.id === 'autocomplete') {

@@ -149,9 +149,10 @@ test('history shows only saved accepted rows and never changes the active game o
     make('2026-03-08', 6, 'lost'),
     make('2026-03-09', 2, 'expired'),
   ];
-  const shared = resultText(snapshotResult(records[0], records[0].date, true)!, false).split('\n').slice(4);
-  expect(shared).toHaveLength(6);
-  expect(shared.every(row => [...row].length === 5)).toBe(true);
+  const shared = resultText(snapshotResult(records[0], records[0].date, true)!, false).split('\n');
+  expect(shared).toHaveLength(11);
+  expect(shared.slice(4, 10).every(row => [...row].length === 5)).toBe(true);
+  expect(shared[10]).toBe('https://polpatch.github.io/ParoleCompetitive/');
   expect(shared.join('')).not.toContain(solution);
   const empty = expireGame(createGame({ date: '2026-03-05', solution, scheduleId: 'empty' }), Date.parse('2026-03-06T00:00:00Z'));
   const unfinished = submitGuess(

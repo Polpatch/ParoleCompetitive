@@ -123,6 +123,7 @@ test('a late clipboard failure still belongs to the retained secret result', asy
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Statistiche' });
   await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
+  await dialog.getByRole('radio', { name: 'Testo puro' }).check();
   await dialog.getByRole('button', { name: 'Condividi risultato' }).click();
   await expect.poll(() => page.evaluate(() => !!(window as Window & { rejectCopy?: () => void }).rejectCopy)).toBe(true);
   const old = submitGuess(createGame({ date: ACTIVATION_DATE, solution: 'AMORE', scheduleId: 'v1' }), 'AMORE', new Set(['AMORE']), now).game;

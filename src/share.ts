@@ -11,10 +11,12 @@ export interface ResultSnapshot {
 
 type Cell = Feedback | 'neutral';
 const palettes = {
-  light: { background: '#fffefa', text: '#162b24', muted: '#63766e', neutral: '#e5e7eb', gray: '#6b7280', yellow: '#ca8a04', green: '#16a34a' },
-  dark: { background: '#222724', text: '#edf2ee', muted: '#b0bdb5', neutral: '#46534b', gray: '#6b7280', yellow: '#ca8a04', green: '#16a34a' },
-} satisfies Record<string, Record<Cell | 'background' | 'text' | 'muted', string>>;
+  light: { background: '#f5f7f2', text: '#162b24', muted: '#63766e', neutral: '#fffefa', border: '#cbd7cf', gray: '#53635b', yellow: '#8a6500', green: '#23754d' },
+  dark: { background: '#181b19', text: '#edf2ee', muted: '#b0bdb5', neutral: '#222724', border: '#46534b', gray: '#53635b', yellow: '#8a6500', green: '#23754d' },
+} satisfies Record<string, Record<Cell | 'background' | 'text' | 'muted' | 'border', string>>;
 const symbols: Record<Cell, string> = { neutral: '⬜', gray: '⬛', yellow: '🟨', green: '🟩' };
+const appUrl = 'https://polpatch.github.io/ParoleCompetitive/';
+ 
 
 // Snapshot the challenge identity and public result data after the reveal.
 export function snapshotResult(game: Game, today: string, revealed: boolean): ResultSnapshot | null {
@@ -26,8 +28,9 @@ export function snapshotResult(game: Game, today: string, revealed: boolean): Re
 }
 
 function grid(result: ResultSnapshot, spoilerFree: boolean): Cell[][] {
+  const firstWin = result.outcome === 'won' && result.attempts === 1;
   return Array.from({ length: 6 }, (_, row) => Array.from({ length: 5 }, (_, col) =>
-    (row === 0 && spoilerFree) ? 'neutral' : result.rows[row]?.[col] ?? 'neutral'));
+    (row === 0 && spoilerFree && !firstWin) ? 'neutral' : result.rows[row]?.[col] ?? 'neutral'));
 }
 
 function summary(result: ResultSnapshot): string[] {
@@ -35,7 +38,7 @@ function summary(result: ResultSnapshot): string[] {
 }
 
 export function resultText(result: ResultSnapshot, spoilerFree = true): string {
-  return [...summary(result), ...grid(result, spoilerFree).map(row => row.map(cell => symbols[cell]).join(''))].join('\n');
+  return [...summary(result), ...grid(result, spoilerFree).map(row => row.map(cell => symbols[cell]).join('')), appUrl].join('\n');
 }
 
 export interface PreparedResult { readonly date: string; readonly scheduleId: string; readonly file: File; readonly text: string }
@@ -46,40 +49,67 @@ export async function prepareResult(result: ResultSnapshot, spoilerFree = true):
   const dark = appearance === 'dark' || (appearance === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const colors = palettes[dark ? 'dark' : 'light'];
   const canvas = document.createElement('canvas');
-  canvas.width = 500;
-  canvas.height = 750;
+  canvas.width = 344;
+  canvas.height = 424;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Impossibile preparare l’immagine del risultato.');
   ctx.fillStyle = colors.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.textAlign = 'center';
+  ctx.textAlign = 'left';
   ctx.fillStyle = colors.text;
-  ctx.font = '700 30px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  ctx.fillText('Parole Competitive', 250, 72);
+  ctx.font = '700 24px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillText('ParoleCompetitive', 24, 40);
   ctx.fillStyle = colors.muted;
-  ctx.font = '300 17px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  ctx.fillText(result.date, 250, 105);
+  ctx.font = '400 14px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.fillText(result.date, 24, 64);
   grid(result, spoilerFree).forEach((row, y) => row.forEach((cell, x) => {
+    const left = 64 + 44 * x, top = 88 + 44 * y;
     ctx.fillStyle = colors[cell];
-    ctx.fillRect(64 + x * 76, 155 + y * 76, 68, 68);
+    ctx.fillRect(left, top, 40, 40);
+    if (cell === 'neutral') {
+      ctx.fillStyle = colors.border;
+      ctx.fillRect(left, top, 40, 1);
+      ctx.fillRect(left, top, 1, 40);
+      ctx.fillRect(left + 39, top, 1, 40);
+      ctx.fillRect(left, top + 39, 40, 1);
+    }
   }));
   ctx.fillStyle = colors.text;
-  ctx.font = '700 36px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-  ctx.fillText(String(result.score), 250, 680);
+  ctx.font = '700 30px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(String(result.score), 172, 400);
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Impossibile preparare l’immagine del risultato.')), 'image/png'));
   return { date: result.date, scheduleId: result.scheduleId, file: new File([blob], 'risultato.png', { type: 'image/png' }), text: resultText(result, spoilerFree) };
 }
-
+ 
 export type ShareOutcome =
   | { kind: 'shared' | 'copied' | 'cancelled' | 'error'; message: string }
   | { kind: 'manual'; message: string; text: string };
-
+ 
 // Invoke directly from the user gesture, without awaiting image preparation first.
 export async function sharePrepared(result: PreparedResult): Promise<ShareOutcome> {
-  const data: ShareData = { files: [result.file] };
+  const data: ShareData = { files: [result.file], text: appUrl };
   let supported: boolean;
   try {
     supported = typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare(data);
+  } catch {
+    return { kind: 'error', message: 'Condivisione non disponibile. Riprova' };
+  }
+  if (!supported) return { kind: 'error', message: 'Condivisione immagini non disponibile' };
+  try {
+    await navigator.share(data);
+    return { kind: 'shared', message: 'Condivisione completata' };
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return { kind: 'cancelled', message: '' };
+    return { kind: 'error', message: 'Condivisione non riuscita. Riprova' };
+  }
+}
+ 
+export async function shareText(text: string): Promise<ShareOutcome> {
+  const data: ShareData = { text };
+  let supported: boolean;
+  try {
+    supported = typeof navigator.share === 'function' && (typeof navigator.canShare !== 'function' || navigator.canShare(data));
   } catch {
     return { kind: 'error', message: 'Condivisione non disponibile. Riprova' };
   }
@@ -94,9 +124,9 @@ export async function sharePrepared(result: PreparedResult): Promise<ShareOutcom
   }
   try {
     if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
-    await navigator.clipboard.writeText(result.text);
+    await navigator.clipboard.writeText(text);
     return { kind: 'copied', message: 'Risultato copiato' };
   } catch {
-    return { kind: 'manual', message: 'Copia il testo qui sotto', text: result.text };
+    return { kind: 'manual', message: 'Copia il testo qui sotto', text };
   }
 }

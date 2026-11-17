@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11-18
+
+- Integrate the refined toast and compact 344×424 result card into the real game, using its effective appearance and revealed result.
+- Add explicit image/plain-text sharing with the canonical app link, a real image preview and an opt-in PNG download; text works independently of PNG preparation.
+- Keep the first row neutral with spoiler-free enabled, except for five letter-free green cells on a first-guess win, in both formats.
+
 ## 2026-11-17
 
 - Stabilize narrow-keyboard browser verification by waiting for draft rerenders, controlling repeat timers and sampling outline containment from the current key. Keep the focus, inset border, release and cancellation checks in both appearances.

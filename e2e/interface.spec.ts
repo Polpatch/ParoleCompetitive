@@ -185,6 +185,7 @@ for (const viewport of [{ width: 320, height: 812 }, { width: 1280, height: 800 
     await page.keyboard.press('Enter');
     await expect(page.getByText(/Hai indovinato! Punteggio:/).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
+    await page.getByRole('radio', { name: 'Testo puro' }).check();
     await page.getByRole('button', { name: 'Condividi risultato' }).click();
     await expect(page.getByRole('dialog')).toContainText(/Risultato copiato|Copia il testo qui sotto/);
     await expect(page.locator('#statistics .stat-card').first()).toContainText('Vittorie1');
@@ -343,8 +344,32 @@ test('failed result image preparation can be retried', async ({ page }) => {
   await page.keyboard.type(solution);
   await page.keyboard.press('Enter');
   await expect(page.locator('.toast')).toBeVisible();
-  await page.getByRole('button', { name: 'Condividi risultato' }).click();
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
+  await page.getByRole('radio', { name: 'Testo puro' }).check();
   await page.getByRole('button', { name: 'Condividi risultato' }).click();
   await expect(page.getByRole('dialog')).toContainText(/Risultato copiato|Copia il testo qui sotto/);
+});
+
+test('plain-text sharing works when PNG preparation fails', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.toBlob = callback => queueMicrotask(() => callback(null));
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => false });
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+      writeText: () => Promise.resolve(),
+    } });
+  });
+  await page.goto('/ParoleCompetitive/');
+  await expect.poll(() => page.evaluate(k => !!localStorage.getItem(k), key)).toBe(true);
+  const solution = await page.evaluate(k => {
+    const games = JSON.parse(localStorage.getItem(k)!).games;
+    return games[Object.keys(games)[0]].solution as string;
+  }, key);
+  await page.keyboard.type(solution);
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Statistiche' });
+  await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toBeVisible();
+  await dialog.getByRole('radio', { name: 'Testo puro' }).check();
+  await dialog.getByRole('button', { name: 'Condividi risultato' }).click();
+  await expect(dialog).toContainText('Risultato copiato');
 });

@@ -79,6 +79,7 @@ test('legacy progress, score and statistics survive appearance changes', async (
   await openAction(page, 'Statistiche');
   await expect(page.locator('#statistics')).toContainText('Vittorie1');
   await expect(page.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
+  await page.getByRole('radio', { name: 'Testo puro' }).check();
   await page.getByRole('button', { name: 'Condividi risultato' }).click();
   await expect(
     page.locator('.toast').or(page.getByRole('textbox', { name: 'Testo da copiare' })),
@@ -109,6 +110,10 @@ for (const appearance of ['Chiaro', 'Scuro'] as const) {
   test(`tiles, controls, focus and sharing feedback remain legible in ${appearance}`, async ({ page }) => {
     await page.clock.setFixedTime(new Date('2026-03-10T12:00:00Z'));
     await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.resolve() } });
+    });
     await page.goto('/ParoleCompetitive/');
     await expect.poll(() => page.evaluate(k => !!localStorage.getItem(k), key)).toBe(true);
     const solution = await page.evaluate(k => JSON.parse(localStorage.getItem(k)!).games['2026-03-10'].solution as string, key);
@@ -132,6 +137,7 @@ for (const appearance of ['Chiaro', 'Scuro'] as const) {
     await expect(page.locator('.keyboard button.green').first()).toHaveCSS('background-color', 'rgb(35, 117, 77)');
     await expect(page.locator('.keyboard button:disabled').first()).toBeDisabled();
     await expect(dialog.getByRole('button', { name: 'Condividi risultato' })).toBeEnabled();
+    await dialog.getByRole('radio', { name: 'Testo puro' }).check();
     await dialog.getByRole('button', { name: 'Condividi risultato' }).click();
     await expect(page.locator('.toast')).toBeVisible();
   });
