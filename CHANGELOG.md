@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-11-17
+
+- Stabilize narrow-keyboard browser verification by waiting for draft rerenders, controlling repeat timers and sampling outline containment from the current key. Keep the focus, inset border, release and cancellation checks in both appearances.
+
 ## 2026-11-12
 
 - Animate rejected submissions with a restartable damped row oscillation, while preserving input, accessible feedback and reduced-motion behavior.

@@ -58,7 +58,10 @@ for (const appearance of ['light', 'dark'] as const) {
   test(`narrow keyboard keeps press feedback contained in ${appearance} appearance`, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 700 });
     await page.emulateMedia({ colorScheme: appearance });
-    await page.clock.install({ time: new Date('2026-03-10T12:00:00Z') });
+    const now = new Date('2026-03-10T12:00:00Z');
+    await page.clock.install({ time: now });
+    // This case measures pressed feedback; repeat cadence is covered separately.
+    await page.clock.pauseAt(now);
     await page.goto('/ParoleCompetitive/');
     const rows = page.locator('.keyboard-row');
     await expect(rows).toHaveCount(3);
@@ -84,9 +87,11 @@ for (const appearance of ['light', 'dark'] as const) {
     const box = (await key.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
+    await expect(page.locator('.board .tile').first()).toHaveText('A');
     await expect(key).toHaveClass(/held/);
     await key.focus();
-    expect(await key.evaluate(element => {
+    // Rendering replaces keys, so sample the current node with a retrying assertion.
+    await expect.poll(() => key.evaluate(element => {
       const style = getComputedStyle(element);
       return parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
     })).toBeLessThanOrEqual(0);
@@ -96,6 +101,7 @@ for (const appearance of ['light', 'dark'] as const) {
     await expect(key).toHaveCSS('box-shadow', 'none');
 
     await page.mouse.down();
+    await expect(page.locator('.board .tile').nth(1)).toHaveText('A');
     await expect(key).toHaveClass(/held/);
     await key.dispatchEvent('pointercancel', { pointerId: 1, pointerType: 'mouse', bubbles: true });
     await expect(key).not.toHaveClass(/held/);
